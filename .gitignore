@@ -1,0 +1,7 @@
+﻿node_modules/
+dist/
+download/
+src-tauri/target/
+*.log
+*.part
+*.part.meta
