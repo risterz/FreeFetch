@@ -6,6 +6,7 @@ pub mod ffmpeg;
 pub mod probe;
 pub mod subtitle_converter;
 pub mod subtitle_parser;
+pub mod ytdlp;
 
 pub use artwork::ArtworkDownloader;
 pub use audio::{AudioConversionOptions, AudioQualityPreset, AudioTargetFormat, BitrateMode};
@@ -18,3 +19,4 @@ pub use ffmpeg::FfmpegController;
 pub use probe::ProbeController;
 pub use subtitle_converter::{document_to_srt, document_to_vtt, vtt_to_srt};
 pub use subtitle_parser::{parse_vtt, SubtitleCue, SubtitleDocument};
+pub use ytdlp::{YtDlpController, YtDlpDiagnostics, YtDlpDump, YtDlpFormat, YtDlpSubtitleTrack};

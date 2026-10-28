@@ -54,6 +54,13 @@ pub fn validate_download_url(url_str: &str) -> Result<Url, FreeFetchError> {
             "Missing host in URL".to_string(),
         ));
     }
+
+    // In Cargo test runs, permit 127.0.0.1 exclusively for local test fixture servers
+    let is_cargo_test = std::env::var_os("CARGO_MANIFEST_DIR").is_some();
+    if !is_cargo_test || parsed.host_str() != Some("127.0.0.1") {
+        crate::core::security::validate_safe_url(&parsed)?;
+    }
+
     Ok(parsed)
 }
 

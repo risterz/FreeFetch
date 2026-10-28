@@ -45,6 +45,9 @@ impl ExtractorRegistry {
     pub fn new() -> Self {
         let extractors: Vec<Arc<dyn Extractor>> = vec![
             Arc::new(implementations::youtube::YoutubeExtractor),
+            Arc::new(implementations::google_drive::GoogleDriveExtractor),
+            Arc::new(implementations::dropbox::DropboxExtractor),
+            Arc::new(implementations::ytdlp::YtDlpExtractor),
             Arc::new(implementations::generic::GenericExtractor),
         ];
         Self { extractors }

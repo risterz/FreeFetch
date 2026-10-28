@@ -17,6 +17,7 @@ import {
   QueueItem,
   QueueSummary,
   StartDownloadParams,
+  YtDlpDiagnostics,
 } from './types';
 
 export const FreeFetchApi = {
@@ -87,6 +88,18 @@ export const FreeFetchApi = {
 
   async checkFfmpegStatus(): Promise<string> {
     return invoke<string>('check_ffmpeg_status');
+  },
+
+  async checkYtDlpStatus(): Promise<string> {
+    return invoke<string>('check_ytdlp_status');
+  },
+
+  async diagnoseYtDlp(url?: string): Promise<YtDlpDiagnostics> {
+    return invoke<YtDlpDiagnostics>('diagnose_ytdlp', { url: url || null });
+  },
+
+  async updateYtDlp(): Promise<string> {
+    return invoke<string>('update_ytdlp');
   },
 
   async openDownloadedFile(path: string): Promise<void> {

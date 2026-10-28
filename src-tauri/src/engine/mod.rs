@@ -240,11 +240,15 @@ impl EngineManager {
                 None,
             )?;
         }
-        if !is_sub || !params.download_url.is_empty() {
+        if (!is_sub || !params.download_url.is_empty())
+            && !params.download_url.starts_with("ytdlp://")
+        {
             let _ = validate_download_url(&params.download_url)?;
         }
         if let Some(ref a_url) = params.matching_audio_url {
-            let _ = validate_download_url(a_url)?;
+            if !a_url.starts_with("ytdlp://") {
+                let _ = validate_download_url(a_url)?;
+            }
         }
 
         let dest_dir = if let Some(ref d) = params.destination_dir {
@@ -826,6 +830,50 @@ async fn run_job(
                 progress_percent: 100.0,
             },
         );
+
+        return Ok(());
+    }
+
+    if params.download_url.starts_with("ytdlp://") {
+        let controller =
+            crate::media::YtDlpController::discover(settings.ytdlp_path.as_deref())?;
+        let engine_prog = engine.clone();
+        let j_id_prog = job_id.to_string();
+        let rep_prog = repo.clone();
+
+        let format_selector = if params.format_id == "best" {
+            None
+        } else {
+            Some(params.format_id.as_str())
+        };
+
+        controller
+            .download_with_progress(
+                &params.source_url,
+                format_selector,
+                dest,
+                None,
+                Some(cancel_rx.clone()),
+                move |percent, downloaded_bytes, total_bytes, speed_bytes_per_sec| {
+                    let _ = rep_prog.update_download_progress(
+                        &j_id_prog,
+                        downloaded_bytes,
+                        total_bytes,
+                    );
+                    engine_prog.emit_event(
+                        "download-progress",
+                        &DownloadProgressPayload {
+                            id: j_id_prog.clone(),
+                            downloaded_bytes,
+                            total_bytes,
+                            speed_bytes_per_sec,
+                            eta_seconds: 0,
+                            progress_percent: percent,
+                        },
+                    );
+                },
+            )
+            .await?;
 
         return Ok(());
     }

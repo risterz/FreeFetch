@@ -37,6 +37,8 @@ pub async fn parse_url(
     state: State<'_, AppState>,
 ) -> Result<ParseResult, FreeFetchError> {
     let parsed_url = Url::parse(&url).map_err(|e| FreeFetchError::InvalidUrl(e.to_string()))?;
+    crate::core::security::validate_safe_url(&parsed_url)?;
+
     let extractor =
         state
             .registry
@@ -46,7 +48,11 @@ pub async fn parse_url(
                 message: "No compatible extractor found for this URL".to_string(),
             })?;
 
-    let ctx = ExtractionContext::default();
+    let ytdlp_path = {
+        let s = state.settings.lock().unwrap();
+        s.ytdlp_path.clone()
+    };
+    let ctx = ExtractionContext::new(None, ytdlp_path);
     let (metadata, manifest) = extractor.extract(&parsed_url, &ctx).await?;
 
     Ok(ParseResult {
@@ -137,6 +143,19 @@ pub fn update_settings(
             .map_err(|e| FreeFetchError::Generic(format!("Invalid FFmpeg binary: {}", e)))?;
     }
 
+    // Validate yt-dlp path if custom specified
+    if let Some(ref path_str) = settings.ytdlp_path {
+        let p = Path::new(path_str);
+        if !p.exists() || !p.is_file() {
+            return Err(FreeFetchError::Generic(format!(
+                "Specified yt-dlp executable does not exist: {}",
+                path_str
+            )));
+        }
+        crate::media::YtDlpController::discover(Some(path_str))
+            .map_err(|e| FreeFetchError::Generic(format!("Invalid yt-dlp binary: {}", e)))?;
+    }
+
     // Validate and prepare download directory
     let dl_path = Path::new(&settings.download_directory);
     if !dl_path.exists() {
@@ -164,6 +183,39 @@ pub fn check_ffmpeg_status(state: State<'_, AppState>) -> Result<String, FreeFet
     let settings = state.settings.lock().unwrap();
     let controller = FfmpegController::discover(settings.ffmpeg_path.as_deref())?;
     Ok(controller.binary_path().to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub fn check_ytdlp_status(state: State<'_, AppState>) -> Result<String, FreeFetchError> {
+    let settings = state.settings.lock().unwrap();
+    let controller = crate::media::YtDlpController::discover(settings.ytdlp_path.as_deref())?;
+    let ver = controller.get_version().unwrap_or_else(|_| "Available".to_string());
+    Ok(format!("{}: {}", controller.binary_path().to_string_lossy(), ver))
+}
+
+#[tauri::command]
+pub async fn diagnose_ytdlp(
+    url: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<crate::media::YtDlpDiagnostics, FreeFetchError> {
+    let settings = {
+        let s = state.settings.lock().unwrap();
+        s.clone()
+    };
+    let controller = crate::media::YtDlpController::discover(settings.ytdlp_path.as_deref())?;
+    controller.run_diagnostics(url.as_deref()).await
+}
+
+#[tauri::command]
+pub async fn update_ytdlp(
+    state: State<'_, AppState>,
+) -> Result<String, FreeFetchError> {
+    let settings = {
+        let s = state.settings.lock().unwrap();
+        s.clone()
+    };
+    let controller = crate::media::YtDlpController::discover(settings.ytdlp_path.as_deref())?;
+    controller.update().await
 }
 
 #[tauri::command]

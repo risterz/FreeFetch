@@ -17,7 +17,7 @@ import {
   AlertCircle,
   FolderOpen,
 } from 'lucide-react';
-import { AppSettings } from '../../api/types';
+import { AppSettings, YtDlpDiagnostics } from '../../api/types';
 import { FreeFetchApi } from '../../api/ipc';
 
 interface SettingsViewProps {
@@ -56,6 +56,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const [ffmpegStatusText, setFfmpegStatusText] = useState<string | null>(null);
   const [isCheckingFfmpeg, setIsCheckingFfmpeg] = useState(false);
+  const [ytdlpStatusText, setYtdlpStatusText] = useState<string | null>(null);
+  const [isCheckingYtdlp, setIsCheckingYtdlp] = useState(false);
+  const [diagnostics, setDiagnostics] = useState<YtDlpDiagnostics | null>(null);
+  const [isDiagnosing, setIsDiagnosing] = useState(false);
+  const [isUpdatingYtdlp, setIsUpdatingYtdlp] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null
   );
@@ -80,6 +86,51 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       setFfmpegStatusText('FFmpeg executable not found or invalid');
     } finally {
       setIsCheckingFfmpeg(false);
+    }
+  };
+
+  // Check yt-dlp status
+  const handleCheckYtDlp = async () => {
+    setIsCheckingYtdlp(true);
+    try {
+      const status = await FreeFetchApi.checkYtDlpStatus();
+      setYtdlpStatusText(`Ready (${status})`);
+    } catch {
+      setYtdlpStatusText('yt-dlp executable not found or invalid');
+    } finally {
+      setIsCheckingYtdlp(false);
+    }
+  };
+
+  const handleDiagnoseYtDlp = async () => {
+    setIsDiagnosing(true);
+    try {
+      const diag = await FreeFetchApi.diagnoseYtDlp();
+      setDiagnostics(diag);
+    } catch (err: unknown) {
+      setDiagnostics({
+        executable_path: 'Unknown',
+        version: 'Error',
+        has_impersonation: false,
+        available_impersonate_targets: [],
+        status: `Failed: ${err instanceof Error ? err.message : String(err)}`,
+        recommendations: ['Check whether yt-dlp is installed and in PATH.'],
+      });
+    } finally {
+      setIsDiagnosing(false);
+    }
+  };
+
+  const handleUpdateYtDlp = async () => {
+    setIsUpdatingYtdlp(true);
+    setUpdateMessage(null);
+    try {
+      const res = await FreeFetchApi.updateYtDlp();
+      setUpdateMessage(res || 'yt-dlp update process finished');
+    } catch (err: unknown) {
+      setUpdateMessage(`Update failed: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsUpdatingYtdlp(false);
     }
   };
 
@@ -131,6 +182,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         max_concurrent_downloads: 3,
         speed_limit_bytes_per_sec: null,
         ffmpeg_path: null,
+        ytdlp_path: null,
         default_container: 'mp4',
         default_audio_format: 'mp3',
         default_audio_quality: 'high',
@@ -618,6 +670,95 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               >
                 {ffmpegStatusText}
               </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-slate-400 mb-1.5">
+              Custom yt-dlp Binary Path (Optional)
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                type="text"
+                value={formData.ytdlp_path || ''}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    ytdlp_path: e.target.value.trim() ? e.target.value : null,
+                  })
+                }
+                placeholder="Leave blank to use system PATH or bundled yt-dlp"
+                className="flex-1 min-w-[200px] bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2 text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:bg-white dark:focus:bg-slate-800 focus:ring-2 focus:ring-emerald-500/40"
+              />
+              <button
+                type="button"
+                onClick={handleCheckYtDlp}
+                disabled={isCheckingYtdlp}
+                className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium transition-colors shadow-xs"
+              >
+                {isCheckingYtdlp ? 'Checking...' : 'Check Status'}
+              </button>
+              <button
+                type="button"
+                onClick={handleDiagnoseYtDlp}
+                disabled={isDiagnosing}
+                className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium transition-colors shadow-xs"
+              >
+                {isDiagnosing ? 'Diagnosing...' : 'Run Diagnostics'}
+              </button>
+              <button
+                type="button"
+                onClick={handleUpdateYtDlp}
+                disabled={isUpdatingYtdlp}
+                className="px-3 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 dark:border-slate-700 rounded-xl text-xs font-medium transition-colors shadow-xs"
+              >
+                {isUpdatingYtdlp ? 'Updating...' : 'Update yt-dlp'}
+              </button>
+            </div>
+            {ytdlpStatusText && (
+              <p
+                className={`text-xs mt-2 font-medium ${
+                  ytdlpStatusText.startsWith('Ready')
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-amber-600 dark:text-amber-400'
+                }`}
+              >
+                {ytdlpStatusText}
+              </p>
+            )}
+            {updateMessage && (
+              <p className="text-xs mt-2 text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800/80 p-2.5 rounded-lg font-mono">
+                {updateMessage}
+              </p>
+            )}
+            {diagnostics && (
+              <div className="mt-3 p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-xl text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">yt-dlp Diagnostics</span>
+                  <span className={`px-2 py-0.5 rounded-full font-medium ${
+                    diagnostics.has_impersonation
+                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400'
+                      : 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-400'
+                  }`}>
+                    {diagnostics.has_impersonation ? 'TLS Impersonation Active' : 'Impersonation Missing'}
+                  </span>
+                </div>
+                <div className="text-slate-600 dark:text-slate-400 space-y-1">
+                  <div><span className="font-medium">Version:</span> {diagnostics.version}</div>
+                  <div className="truncate"><span className="font-medium">Binary:</span> {diagnostics.executable_path}</div>
+                  <div><span className="font-medium">Status:</span> {diagnostics.status}</div>
+                </div>
+                {diagnostics.recommendations.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-slate-200 dark:border-slate-700 space-y-1">
+                    <span className="font-medium text-amber-600 dark:text-amber-400">Recommendations:</span>
+                    {diagnostics.recommendations.map((rec, idx) => (
+                      <p key={idx} className="text-slate-600 dark:text-slate-400 leading-relaxed">
+                        • {rec}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>

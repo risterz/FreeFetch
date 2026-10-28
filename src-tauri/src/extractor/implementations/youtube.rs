@@ -1,7 +1,6 @@
 use async_trait::async_trait;
 use serde::Deserialize;
 use std::collections::HashMap;
-use std::process::Stdio;
 use url::Url;
 
 use crate::core::error::FreeFetchError;
@@ -21,54 +20,7 @@ struct OEmbedResponse {
     _thumbnail_url: Option<String>,
 }
 
-#[derive(Deserialize, Debug)]
-#[allow(dead_code)]
-struct YtDlpDump {
-    id: String,
-    title: String,
-    uploader: Option<String>,
-    channel: Option<String>,
-    artist: Option<String>,
-    album: Option<String>,
-    track: Option<String>,
-    release_date: Option<String>,
-    release_year: Option<u32>,
-    duration: Option<f64>,
-    thumbnail: Option<String>,
-    description: Option<String>,
-    upload_date: Option<String>,
-    language: Option<String>,
-    formats: Option<Vec<YtDlpFormat>>,
-    subtitles: Option<HashMap<String, Vec<YtDlpSubtitleTrack>>>,
-    automatic_captions: Option<HashMap<String, Vec<YtDlpSubtitleTrack>>>,
-}
-
-#[derive(Deserialize, Debug, Clone)]
-pub struct YtDlpSubtitleTrack {
-    pub ext: Option<String>,
-    pub url: Option<String>,
-    pub name: Option<String>,
-}
-
-#[derive(Deserialize, Debug)]
-struct YtDlpFormat {
-    format_id: String,
-    url: Option<String>,
-    ext: Option<String>,
-    protocol: Option<String>,
-    vcodec: Option<String>,
-    acodec: Option<String>,
-    width: Option<u32>,
-    height: Option<u32>,
-    fps: Option<f64>,
-    tbr: Option<f64>,
-    vbr: Option<f64>,
-    abr: Option<f64>,
-    filesize: Option<u64>,
-    filesize_approx: Option<u64>,
-    format_note: Option<String>,
-    resolution: Option<String>,
-}
+pub use crate::media::ytdlp::{YtDlpController, YtDlpDump, YtDlpFormat, YtDlpSubtitleTrack};
 
 #[async_trait]
 impl Extractor for YoutubeExtractor {
@@ -99,7 +51,13 @@ impl Extractor for YoutubeExtractor {
         let mut last_failure_reason = None;
 
         // Attempt Method 1: yt-dlp discovery and execution
-        match try_extract_with_ytdlp(&canonical_url).await {
+        match try_extract_with_ytdlp(
+            &canonical_url,
+            ctx.ytdlp_path.as_deref(),
+            ctx.proxy.as_deref(),
+        )
+        .await
+        {
             Ok(dump) => return normalize_ytdlp_dump(dump, &canonical_url),
             Err(e) => {
                 if let FreeFetchError::Extractor { message, .. } = e {
@@ -228,35 +186,13 @@ pub fn is_valid_youtube_id(id: &str) -> bool {
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
 }
 
-async fn try_extract_with_ytdlp(url: &str) -> Result<YtDlpDump, FreeFetchError> {
-    let mut cmd = crate::core::hidden_tokio_command("yt-dlp");
-    cmd.arg("--dump-json")
-        .arg("--no-download")
-        .arg("--no-warnings")
-        .arg("--skip-download")
-        .arg(url)
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    let output = cmd
-        .output()
-        .await
-        .map_err(|e| FreeFetchError::Io(e.to_string()))?;
-    if !output.status.success() {
-        let err_log = String::from_utf8_lossy(&output.stderr).to_string();
-        return Err(FreeFetchError::Extractor {
-            service: "youtube".to_string(),
-            message: err_log,
-        });
-    }
-
-    let dump: YtDlpDump =
-        serde_json::from_slice(&output.stdout).map_err(|e| FreeFetchError::Extractor {
-            service: "youtube".to_string(),
-            message: format!("Failed to parse yt-dlp JSON: {e}"),
-        })?;
-
-    Ok(dump)
+async fn try_extract_with_ytdlp(
+    url: &str,
+    custom_path: Option<&str>,
+    proxy: Option<&str>,
+) -> Result<YtDlpDump, FreeFetchError> {
+    let controller = YtDlpController::discover(custom_path)?;
+    controller.extract_json(url, proxy).await
 }
 
 fn normalize_ytdlp_dump(

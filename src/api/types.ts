@@ -153,6 +153,7 @@ export interface AppSettings {
   max_concurrent_downloads: number;
   speed_limit_bytes_per_sec?: number | null;
   ffmpeg_path?: string | null;
+  ytdlp_path?: string | null;
   default_container: string;
   default_audio_format?: string;
   default_audio_quality?: string;
@@ -295,4 +296,15 @@ export interface PlaylistItemSelection {
   format_id?: string | null;
   selected_subtitles?: SubtitleSelection[];
 }
+
+export interface YtDlpDiagnostics {
+  executable_path: string;
+  version: string;
+  has_impersonation: boolean;
+  available_impersonate_targets: string[];
+  verbose_log?: string | null;
+  status: string;
+  recommendations: string[];
+}
+
 

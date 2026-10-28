@@ -91,6 +91,7 @@ fn test_settings_sanitization() {
         max_concurrent_downloads: 100,      // Excessive
         speed_limit_bytes_per_sec: Some(0), // 0 should become None
         ffmpeg_path: Some("   ".to_string()),
+        ytdlp_path: Some("   ".to_string()),
         default_container: "AVI".to_string(),       // Invalid
         default_audio_format: "WAV".to_string(),    // Invalid
         default_audio_quality: "ULTRA".to_string(), // Invalid
@@ -109,6 +110,7 @@ fn test_settings_sanitization() {
         "0 becomes None (unlimited)"
     );
     assert_eq!(s.ffmpeg_path, None, "Whitespace path becomes None");
+    assert_eq!(s.ytdlp_path, None, "Whitespace path becomes None");
     assert_eq!(s.default_container, "mp4", "Fallback to mp4");
     assert_eq!(s.default_audio_format, "mp3", "Fallback to mp3");
     assert_eq!(s.default_audio_quality, "high", "Fallback to high");
@@ -155,6 +157,7 @@ fn test_settings_sqlite_persistence_roundtrip() {
         max_concurrent_downloads: 4,
         speed_limit_bytes_per_sec: Some(5_000_000),
         ffmpeg_path: None,
+        ytdlp_path: None,
         default_container: "mkv".to_string(),
         default_audio_format: "flac".to_string(),
         default_audio_quality: "best".to_string(),

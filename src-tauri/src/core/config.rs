@@ -8,6 +8,7 @@ pub struct AppSettings {
     pub max_concurrent_downloads: usize,
     pub speed_limit_bytes_per_sec: Option<u64>,
     pub ffmpeg_path: Option<String>,
+    pub ytdlp_path: Option<String>,
     pub default_container: String,
     pub default_audio_format: String,
     pub default_audio_quality: String,
@@ -26,6 +27,7 @@ impl Default for AppSettings {
             max_concurrent_downloads: 3,
             speed_limit_bytes_per_sec: None,
             ffmpeg_path: None,
+            ytdlp_path: None,
             default_container: "mp4".to_string(),
             default_audio_format: "mp3".to_string(),
             default_audio_quality: "high".to_string(),
@@ -90,6 +92,16 @@ impl AppSettings {
                 self.ffmpeg_path = None;
             } else {
                 self.ffmpeg_path = Some(trimmed);
+            }
+        }
+
+        // yt-dlp path: trim or None if empty
+        if let Some(ref p) = self.ytdlp_path {
+            let trimmed = p.trim().to_string();
+            if trimmed.is_empty() {
+                self.ytdlp_path = None;
+            } else {
+                self.ytdlp_path = Some(trimmed);
             }
         }
     }
