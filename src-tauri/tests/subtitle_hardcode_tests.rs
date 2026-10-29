@@ -180,6 +180,7 @@ fn test_4_audio_isolation_invariant_a3_blocks_hardcoding() {
         }),
         video_codec: None,
         audio_codec: None,
+        http_headers: None,
     };
 
     let should_process = params.resolved_subtitle_mode() != SubtitleMode::None

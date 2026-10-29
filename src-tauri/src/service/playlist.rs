@@ -567,6 +567,7 @@ pub async fn queue_playlist_items(
                 audio_options: audio_opts,
                 video_codec: selected_fmt.video_codec.clone(),
                 audio_codec: selected_fmt.audio_codec.clone(),
+                http_headers: selected_fmt.http_headers.clone(),
             })
         });
 

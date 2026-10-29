@@ -1,12 +1,22 @@
 use freefetch_lib::core::security::{
     is_safe_ip, sanitize_sensitive_text, validate_safe_url,
 };
+use freefetch_lib::engine::chunk_downloader::download_stream_resilient_with_headers;
+use freefetch_lib::engine::parallel_downloader::probe_stream_with_headers;
+use freefetch_lib::engine::rate_limiter::RateLimiter;
 use freefetch_lib::extractor::implementations::dropbox::convert_to_direct_dropbox_url;
 use freefetch_lib::extractor::implementations::google_drive::{
     extract_gdrive_file_id, parse_content_disposition_filename,
 };
 use freefetch_lib::extractor::ExtractorRegistry;
-use std::net::IpAddr;
+use freefetch_lib::media::{ProbeController, YtDlpController};
+use std::collections::HashMap;
+use std::net::{IpAddr, SocketAddr};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::net::TcpListener;
+use tokio::sync::watch;
 use url::Url;
 
 #[test]
@@ -234,4 +244,192 @@ async fn test_real_world_tiktok_extraction() {
             panic!("TikTok extraction failed: {:?}", e);
         }
     }
+}
+
+/// Simple mock HTTP server that processes requests with a custom handler
+async fn run_mock_server<F>(handler: F) -> (SocketAddr, tokio::sync::oneshot::Sender<()>)
+where
+    F: Fn(String, usize) -> Option<Vec<u8>> + Send + Sync + 'static,
+{
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel::<()>();
+
+    let handler = Arc::new(handler);
+    let req_counter = Arc::new(AtomicUsize::new(0));
+
+    tokio::spawn(async move {
+        loop {
+            tokio::select! {
+                _ = &mut shutdown_rx => break,
+                accept_res = listener.accept() => {
+                    if let Ok((mut socket, _)) = accept_res {
+                        let h = handler.clone();
+                        let count = req_counter.clone();
+                        tokio::spawn(async move {
+                            let mut buf = [0u8; 4096];
+                            let n = match socket.read(&mut buf).await {
+                                Ok(n) if n > 0 => n,
+                                _ => return,
+                            };
+                            let req_str = String::from_utf8_lossy(&buf[..n]).to_string();
+                            let req_idx = count.fetch_add(1, Ordering::SeqCst);
+
+                            if let Some(resp_bytes) = h(req_str, req_idx) {
+                                let _ = socket.write_all(&resp_bytes).await;
+                                let _ = socket.flush().await;
+                            } else {
+                                let _ = socket.shutdown().await;
+                            }
+                        });
+                    }
+                }
+            }
+        }
+    });
+
+    (addr, shutdown_tx)
+}
+
+#[tokio::test]
+async fn test_media_url_requiring_specific_headers() {
+    let (addr, _shutdown) = run_mock_server(|req, _idx| {
+        let has_token = req.contains("x-auth-token: secret-token-12345")
+            || req.contains("X-Auth-Token: secret-token-12345");
+        let has_referer = req.contains("referer: https://example.com/source")
+            || req.contains("Referer: https://example.com/source");
+
+        if has_token && has_referer {
+            Some(b"HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nsecret_media".to_vec())
+        } else {
+            Some(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 9\r\n\r\nForbidden".to_vec())
+        }
+    })
+    .await;
+
+    let client = reqwest::Client::new();
+    let url = format!("http://{addr}/secure_video.mp4");
+
+    // 1. Without headers: stream probe MUST fail with 403
+    let probe_without = probe_stream_with_headers(&client, &url, None).await;
+    assert!(probe_without.is_err(), "Probe without required headers must fail");
+    let err_str = probe_without.err().unwrap().to_string();
+    assert!(err_str.contains("403"), "Error must contain 403 status code");
+
+    // 2. With required headers: probe MUST succeed
+    let mut headers = HashMap::new();
+    headers.insert("X-Auth-Token".to_string(), "secret-token-12345".to_string());
+    headers.insert("Referer".to_string(), "https://example.com/source".to_string());
+
+    let probe_with = probe_stream_with_headers(&client, &url, Some(&headers)).await;
+    assert!(probe_with.is_ok(), "Probe with required headers must succeed");
+    assert_eq!(probe_with.unwrap().total_bytes, Some(12));
+}
+
+#[tokio::test]
+async fn test_expired_url_handling_and_re_extraction() {
+    let (addr, _shutdown) = run_mock_server(|req, _idx| {
+        if req.contains("/expired_stream") {
+            Some(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 9\r\n\r\nForbidden".to_vec())
+        } else if req.contains("/refreshed_stream") {
+            Some(b"HTTP/1.1 200 OK\r\nContent-Length: 10\r\n\r\n0123456789".to_vec())
+        } else {
+            Some(b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n".to_vec())
+        }
+    })
+    .await;
+
+    let client = reqwest::Client::new();
+    let initial_url = format!("http://{addr}/expired_stream");
+    let refreshed_url = format!("http://{addr}/refreshed_stream");
+
+    let temp_part = std::env::temp_dir().join(format!("ff_test_refresh_{}.part", uuid::Uuid::new_v4()));
+    let (_cancel_tx, cancel_rx) = watch::channel(false);
+    let rate_limiter = RateLimiter::new(None);
+
+    let refresher_target = refreshed_url.clone();
+    let url_refresher: Option<freefetch_lib::engine::chunk_downloader::UrlRefresher> =
+        Some(Arc::new(move || {
+            let u = refresher_target.clone();
+            Box::pin(async move { Ok(u) })
+        }));
+
+    let downloaded = download_stream_resilient_with_headers(
+        &client,
+        &initial_url,
+        &temp_part,
+        cancel_rx,
+        rate_limiter,
+        url_refresher,
+        None,
+        |_p| {},
+        |_status, _msg| {},
+    )
+    .await;
+
+    let _ = tokio::fs::remove_file(&temp_part).await;
+    assert!(downloaded.is_ok(), "Download should succeed after refreshing expired URL");
+    assert_eq!(downloaded.unwrap(), 10, "Should have downloaded 10 bytes from refreshed URL");
+}
+
+#[tokio::test]
+async fn test_fallback_to_ytdlp_managed_downloading() {
+    let registry = ExtractorRegistry::new();
+    let tiktok_url = Url::parse("https://www.tiktok.com/@hansenvendiagus14/video/7692418604607868180").unwrap();
+
+    let ext = registry.find_extractor(&tiktok_url).expect("Must find extractor for TikTok");
+    assert_eq!(ext.name(), "ytdlp");
+
+    let ctx = freefetch_lib::extractor::ExtractionContext::default();
+    let (_meta, manifest) = ext.extract(&tiktok_url, &ctx).await.expect("Extract must succeed");
+
+    assert!(!manifest.formats.is_empty(), "Formats must be available");
+    // Verify that formats are routed to ytdlp:// to prevent direct 403 probe rejections
+    for f in &manifest.formats {
+        assert!(
+            f.download_url.starts_with("ytdlp://"),
+            "Extractor-managed format must use ytdlp:// protocol: got {}",
+            f.download_url
+        );
+        assert!(f.http_headers.is_some(), "Format must retain request headers");
+    }
+}
+
+#[tokio::test]
+async fn test_real_world_tiktok_download_and_mp4_playback() {
+    let controller = YtDlpController::discover(None).expect("yt-dlp must be discoverable");
+    let tiktok_url = "https://www.tiktok.com/@hansenvendiagus14/video/7692418604607868180";
+
+    let temp_dir = std::env::temp_dir();
+    let dest_path = temp_dir.join(format!("ff_tiktok_test_{}.mp4", uuid::Uuid::new_v4()));
+
+    // Download with progress reporting
+    let res = controller
+        .download_with_progress(
+            tiktok_url,
+            Some("h264_540p_180027-0"),
+            &dest_path,
+            None,
+            None,
+            |_percent, _downloaded, _total, _speed| {},
+        )
+        .await;
+
+    assert!(res.is_ok(), "TikTok video download failed: {:?}", res);
+    assert!(dest_path.is_file(), "Downloaded video file must exist");
+
+    let file_size = std::fs::metadata(&dest_path).unwrap().len();
+    assert!(file_size > 500_000, "Downloaded file size must be > 500KB, got {file_size}");
+
+    // Verify video and audio playback capabilities with ffprobe
+    let probe = ProbeController::discover(None).expect("ffprobe must be discoverable");
+    let video_codec = probe.probe_video_codec(&dest_path).await.expect("ffprobe video codec check failed");
+    let audio_codec = probe.probe_audio_codec(&dest_path).await.expect("ffprobe audio codec check failed");
+
+    println!("Verified TikTok MP4 playback: video_codec={video_codec}, audio_codec={audio_codec}, size={file_size}");
+    assert_eq!(video_codec.to_lowercase(), "h264", "Video codec must be h264");
+    assert_eq!(audio_codec.to_lowercase(), "aac", "Audio codec must be aac");
+
+    // Clean up temporary test file
+    let _ = std::fs::remove_file(&dest_path);
 }

@@ -391,6 +391,7 @@ fn normalize_ytdlp_dump(
             download_url,
             requires_merge,
             matching_audio_url,
+            http_headers: None,
         });
     }
 
@@ -886,6 +887,7 @@ async fn try_extract_with_innertube(
             download_url: url_str,
             requires_merge,
             matching_audio_url,
+            http_headers: None,
         });
     }
 

@@ -105,6 +105,7 @@ async fn test_regression_queue_init_failure_frees_slot_and_advances_queue() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     // Item 2: Queued behind Item 1
@@ -127,6 +128,7 @@ async fn test_regression_queue_init_failure_frees_slot_and_advances_queue() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     let item1 = queue.add(bad_params).await.unwrap();
@@ -245,6 +247,7 @@ async fn test_regression_subtitle_no_signed_url_persisted_in_sqlite() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     let sub_selection = vec![SubtitleSelection {
@@ -326,6 +329,7 @@ async fn test_regression_subtitle_url_absent_deferred_resolution() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     let item = queue.add(sub_params).await.unwrap();
@@ -508,6 +512,7 @@ async fn test_regression_late_worker_error_cannot_overwrite_cancelled() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     let item = queue.add(params).await.unwrap();
@@ -570,6 +575,7 @@ async fn test_regression_late_worker_error_cannot_overwrite_completed() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     let item = queue.add(params).await.unwrap();
@@ -622,6 +628,7 @@ async fn test_regression_stale_worker_progress_cannot_overwrite_paused() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     let item = queue.add(params).await.unwrap();
@@ -768,6 +775,7 @@ async fn test_regression_subtitle_resolution_failure_clean_state() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     // Subtitle item with non-existent language
@@ -790,6 +798,7 @@ async fn test_regression_subtitle_resolution_failure_clean_state() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     let media_item = queue.add(media_params).await.unwrap();

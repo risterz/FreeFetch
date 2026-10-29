@@ -96,6 +96,7 @@ impl Extractor for GenericExtractor {
                     download_url: url_str.to_string(),
                     requires_merge: false,
                     matching_audio_url: None,
+                    http_headers: None,
                 };
 
                 let meta = MediaMetadata {
@@ -177,6 +178,7 @@ impl Extractor for GenericExtractor {
                 download_url: full_video_url,
                 requires_merge: false,
                 matching_audio_url: None,
+                http_headers: None,
             };
 
             let meta = MediaMetadata {

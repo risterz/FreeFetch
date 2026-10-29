@@ -272,6 +272,7 @@ impl QueueManager {
                     audio_options: None,
                     video_codec: None,
                     audio_codec: None,
+                    http_headers: None,
                 };
 
                 // Individual subtitle failure does not stop adding other subtitles or media

@@ -172,17 +172,32 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ onNavigateToQueue, ref
     setPage(0);
   };
 
-  const handleCopyUrl = async (id: string, url: string) => {
+  const handleCopyPathOrUrl = async (id: string, record: DownloadRecord) => {
+    const textToCopy =
+      record.destination_path && record.destination_path.trim().length > 0
+        ? record.destination_path
+        : record.source_url;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(textToCopy);
       setCopiedId(id);
       setTimeout(() => setCopiedId(null), 2000);
+      setActionMessage(
+        record.destination_path && record.destination_path.trim().length > 0
+          ? 'File path copied to clipboard!'
+          : 'Source URL copied to clipboard!'
+      );
+      setTimeout(() => setActionMessage(null), 3000);
     } catch {
       // Fallback
     }
   };
 
   const handleOpenFile = async (path: string) => {
+    if (!path || !path.trim()) {
+      setActionMessage('Cannot open file: No destination file path recorded.');
+      setTimeout(() => setActionMessage(null), 4000);
+      return;
+    }
     try {
       await FreeFetchApi.openDownloadedFile(path);
     } catch (err) {
@@ -192,6 +207,11 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ onNavigateToQueue, ref
   };
 
   const handleOpenFolder = async (path: string) => {
+    if (!path || !path.trim()) {
+      setActionMessage('Cannot open folder: No destination path recorded.');
+      setTimeout(() => setActionMessage(null), 4000);
+      return;
+    }
     try {
       await FreeFetchApi.openContainingFolder(path);
     } catch (err) {
@@ -653,7 +673,7 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ onNavigateToQueue, ref
                   {isCompleted && (
                     <button
                       onClick={() => handleOpenFile(record.destination_path)}
-                      title="Play / Open file"
+                      title="Open file"
                       className="p-2 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 dark:text-slate-400 dark:hover:text-white dark:bg-slate-800/80 dark:hover:bg-slate-700/80 rounded-xl transition-colors border border-slate-200 dark:border-slate-700/60"
                     >
                       <Play className="w-4 h-4 fill-current" />
@@ -669,10 +689,10 @@ export const HistoryView: React.FC<HistoryViewProps> = ({ onNavigateToQueue, ref
                     <FolderOpen className="w-4 h-4" />
                   </button>
 
-                  {/* Copy Source URL */}
+                  {/* Copy File Path or Source URL */}
                   <button
-                    onClick={() => handleCopyUrl(record.id, record.source_url)}
-                    title="Copy source URL"
+                    onClick={() => handleCopyPathOrUrl(record.id, record)}
+                    title={record.destination_path ? "Copy file path" : "Copy source URL"}
                     className="p-2 text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 dark:text-slate-400 dark:hover:text-white dark:bg-slate-800/80 dark:hover:bg-slate-700/80 rounded-xl transition-colors border border-slate-200 dark:border-slate-700/60 relative"
                   >
                     {copiedId === record.id ? (

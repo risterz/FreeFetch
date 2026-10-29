@@ -242,10 +242,10 @@ export const DownloadCard: React.FC<DownloadCardProps> = ({
             <button
               onClick={() => onOpenFile(record.destination_path)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/15 hover:bg-emerald-600/25 text-emerald-300 border border-emerald-500/30 text-xs font-semibold transition-colors"
-              title="Open downloaded media file"
+              title="Open file"
             >
               <FileVideo className="w-3.5 h-3.5" />
-              <span>Play</span>
+              <span>Open File</span>
             </button>
 
             <button

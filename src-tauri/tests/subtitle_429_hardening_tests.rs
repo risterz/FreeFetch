@@ -366,6 +366,7 @@ async fn test_6_subtitle_isolation_with_429() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     let sub_params_429 = StartDownloadParams {
@@ -387,6 +388,7 @@ async fn test_6_subtitle_isolation_with_429() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     let sub_params_ok = StartDownloadParams {
@@ -408,6 +410,7 @@ async fn test_6_subtitle_isolation_with_429() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     let media_item = queue.add(media_params).await.unwrap();
@@ -469,6 +472,7 @@ async fn test_7_concurrent_subtitle_requests_remain_bounded() {
             audio_options: None,
             video_codec: None,
             audio_codec: None,
+        http_headers: None,
         };
         queue.add(sub_params).await.unwrap();
     }

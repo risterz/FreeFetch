@@ -33,6 +33,8 @@ pub struct MediaFormat {
     pub download_url: String,
     pub requires_merge: bool,
     pub matching_audio_url: Option<String>,
+    #[serde(default)]
+    pub http_headers: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]

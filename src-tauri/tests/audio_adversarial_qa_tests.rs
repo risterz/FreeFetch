@@ -640,6 +640,7 @@ async fn test_mixed_queue_duplicate_isolation() {
             audio_options: audio_opt,
             video_codec: None,
             audio_codec: None,
+        http_headers: None,
         };
 
         let res = queue.add(params).await;
@@ -682,6 +683,7 @@ async fn test_mixed_queue_duplicate_isolation() {
         }),
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     };
 
     let dup_res = queue.add(duplicate_mp3).await;

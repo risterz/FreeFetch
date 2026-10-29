@@ -28,6 +28,7 @@ pub struct YtDlpDump {
     pub formats: Option<Vec<YtDlpFormat>>,
     pub subtitles: Option<HashMap<String, Vec<YtDlpSubtitleTrack>>>,
     pub automatic_captions: Option<HashMap<String, Vec<YtDlpSubtitleTrack>>>,
+    pub http_headers: Option<HashMap<String, String>>,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -55,6 +56,8 @@ pub struct YtDlpFormat {
     pub filesize_approx: Option<u64>,
     pub format_note: Option<String>,
     pub resolution: Option<String>,
+    pub http_headers: Option<HashMap<String, String>>,
+    pub cookies: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -420,12 +423,16 @@ impl YtDlpController {
     {
         let mut cmd = crate::core::hidden_tokio_command(&self.binary_path);
         cmd.arg("--newline")
-            .arg("--no-warnings")
-            .arg("--no-call-home");
+            .arg("--no-warnings");
 
         if let Some(fmt) = format_selector {
-            if !fmt.trim().is_empty() {
-                cmd.arg("-f").arg(fmt);
+            let trimmed = fmt.trim();
+            if !trimmed.is_empty() {
+                if trimmed == "best" {
+                    cmd.arg("-f").arg("bestvideo+bestaudio/best");
+                } else {
+                    cmd.arg("-f").arg(format!("{trimmed}/bestvideo+bestaudio/best"));
+                }
             }
         }
 
@@ -449,6 +456,22 @@ impl YtDlpController {
             .stdout
             .take()
             .ok_or_else(|| FreeFetchError::Io("Failed to capture yt-dlp stdout".to_string()))?;
+
+        let stderr = child.stderr.take();
+
+        // Spawn background task to collect stderr in case of error
+        let stderr_handle = tokio::spawn(async move {
+            let mut err_lines = Vec::new();
+            if let Some(err) = stderr {
+                let mut reader = BufReader::new(err).lines();
+                while let Ok(Some(line)) = reader.next_line().await {
+                    if !line.trim().is_empty() {
+                        err_lines.push(line);
+                    }
+                }
+            }
+            err_lines
+        });
 
         let mut reader = BufReader::new(stdout).lines();
 
@@ -498,10 +521,37 @@ impl YtDlpController {
             .map_err(|e| FreeFetchError::Io(format!("Failed to wait on yt-dlp process: {e}")))?;
 
         if !status.success() {
+            let captured_err = stderr_handle.await.unwrap_or_default().join("\n");
+            let sanitized = sanitize_sensitive_text(&captured_err);
             return Err(FreeFetchError::Extractor {
                 service: "yt-dlp".to_string(),
-                message: "yt-dlp download process exited with error status".to_string(),
+                message: if sanitized.trim().is_empty() {
+                    "yt-dlp download process exited with error status".to_string()
+                } else {
+                    sanitized
+                },
             });
+        }
+
+        // If dest does not exist directly, check if yt-dlp appended/changed extension
+        if !dest.exists() {
+            if let Some(parent) = dest.parent() {
+                if let Some(stem) = dest.file_stem().and_then(|s| s.to_str()) {
+                    if let Ok(mut entries) = tokio::fs::read_dir(parent).await {
+                        while let Ok(Some(entry)) = entries.next_entry().await {
+                            let path = entry.path();
+                            if path.is_file() {
+                                if let Some(entry_stem) = path.file_stem().and_then(|s| s.to_str()) {
+                                    if entry_stem == stem && path != dest {
+                                        let _ = tokio::fs::rename(&path, dest).await;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         Ok(())

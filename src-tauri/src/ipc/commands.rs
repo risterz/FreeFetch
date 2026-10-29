@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tauri::State;
 use url::Url;
@@ -218,88 +218,272 @@ pub async fn update_ytdlp(
     controller.update().await
 }
 
+#[cfg(target_os = "windows")]
+mod win_shell {
+    use std::ffi::OsStr;
+    use std::os::windows::ffi::OsStrExt;
+    use std::path::Path;
+
+    #[link(name = "shell32")]
+    extern "system" {
+        fn ShellExecuteW(
+            hwnd: *mut std::ffi::c_void,
+            lpOperation: *const u16,
+            lpFile: *const u16,
+            lpParameters: *const u16,
+            lpDirectory: *const u16,
+            nShowCmd: i32,
+        ) -> isize;
+    }
+
+    /// Invokes Win32 `ShellExecuteW` with the "open" verb.
+    /// Handles spaces, commas, quotes, and full Unicode/emojis natively without shell escaping.
+    pub fn shell_open<P: AsRef<Path>>(path: P) -> Result<(), String> {
+        let path = path.as_ref();
+        let wide_path: Vec<u16> = path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let wide_op: Vec<u16> = OsStr::new("open")
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+
+        // SW_SHOWNORMAL = 1
+        let res = unsafe {
+            ShellExecuteW(
+                std::ptr::null_mut(),
+                wide_op.as_ptr(),
+                wide_path.as_ptr(),
+                std::ptr::null(),
+                std::ptr::null(),
+                1,
+            )
+        };
+
+        if res > 32 {
+            Ok(())
+        } else {
+            Err(match res {
+                2 => "File not found (Win32 error 2)".to_string(),
+                3 => "Path not found (Win32 error 3)".to_string(),
+                5 => "Access denied (Win32 error 5)".to_string(),
+                31 => "No application associated with this file type (Win32 error 31)".to_string(),
+                code => format!("Win32 ShellExecuteW failed with error code: {code}"),
+            })
+        }
+    }
+}
+
 #[tauri::command]
 pub fn open_downloaded_file(path: String) -> Result<(), FreeFetchError> {
-    let p = Path::new(&path);
-    if !p.exists() {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err(FreeFetchError::NotFound("File path is empty".to_string()));
+    }
+
+    let clean_path = trimmed.replace('/', "\\");
+    let p = PathBuf::from(&clean_path);
+    let abs_path = if p.is_relative() {
+        std::env::current_dir().unwrap_or_default().join(p)
+    } else {
+        p
+    };
+
+    if !abs_path.exists() {
+        eprintln!(
+            "[FreeFetch] open_downloaded_file failed: File not found at {}",
+            abs_path.display()
+        );
         return Err(FreeFetchError::NotFound(format!(
-            "File does not exist: {path}"
+            "File does not exist: {}",
+            abs_path.display()
         )));
     }
 
+    if abs_path.is_dir() {
+        eprintln!(
+            "[FreeFetch] open_downloaded_file failed: Path is a directory: {}",
+            abs_path.display()
+        );
+        return Err(FreeFetchError::Io(format!(
+            "Specified path is a directory, not a media file: {}",
+            abs_path.display()
+        )));
+    }
+
+    eprintln!("[FreeFetch] Opening downloaded file: {}", abs_path.display());
+
     #[cfg(target_os = "windows")]
     {
-        crate::core::hidden_std_command("rundll32.exe")
-            .arg("url.dll,FileProtocolHandler")
-            .arg(&path)
-            .spawn()
-            .map_err(|e| FreeFetchError::Io(e.to_string()))?;
+        // Try ShellExecuteW first for direct native association and full Unicode support
+        match win_shell::shell_open(&abs_path) {
+            Ok(()) => Ok(()),
+            Err(shell_err) => {
+                eprintln!("[FreeFetch] ShellExecuteW failed ({shell_err}), falling back to explorer.exe");
+                // Fallback to launching via explorer.exe
+                std::process::Command::new("explorer.exe")
+                    .arg(abs_path.as_os_str())
+                    .spawn()
+                    .map(|_| ())
+                    .map_err(|io_err| {
+                        FreeFetchError::Io(format!("{shell_err}; Explorer fallback failed: {io_err}"))
+                    })
+            }
+        }
     }
 
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("open")
-            .arg(&path)
+            .arg(&abs_path)
             .spawn()
-            .map_err(|e| FreeFetchError::Io(e.to_string()))?;
+            .map(|_| ())
+            .map_err(|e| FreeFetchError::Io(e.to_string()))
     }
 
     #[cfg(target_os = "linux")]
     {
         std::process::Command::new("xdg-open")
-            .arg(&path)
+            .arg(&abs_path)
             .spawn()
-            .map_err(|e| FreeFetchError::Io(e.to_string()))?;
+            .map(|_| ())
+            .map_err(|e| FreeFetchError::Io(e.to_string()))
     }
 
-    Ok(())
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        Err(FreeFetchError::Io(
+            "Unsupported operating system for opening files".to_string(),
+        ))
+    }
 }
 
 #[tauri::command]
 pub fn open_containing_folder(path: String) -> Result<(), FreeFetchError> {
-    let p = Path::new(&path);
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err(FreeFetchError::NotFound(
+            "Folder path is empty".to_string(),
+        ));
+    }
+
+    let clean_path = trimmed.replace('/', "\\");
+    let p = PathBuf::from(&clean_path);
+    let abs_path = if p.is_relative() {
+        std::env::current_dir().unwrap_or_default().join(p)
+    } else {
+        p
+    };
+
+    eprintln!(
+        "[FreeFetch] Opening containing folder for: {}",
+        abs_path.display()
+    );
 
     #[cfg(target_os = "windows")]
     {
-        if p.is_file() {
+        if abs_path.is_file() {
+            // Highlight/select the specific downloaded file in Windows Explorer
             std::process::Command::new("explorer.exe")
-                .arg(format!("/select,\"{}\"", path.replace('/', "\\")))
+                .arg(format!("/select,{}", abs_path.display()))
                 .spawn()
-                .map_err(|e| FreeFetchError::Io(e.to_string()))?;
-        } else if p.is_dir() {
+                .map(|_| ())
+                .map_err(|e| FreeFetchError::Io(format!("Failed to open Explorer: {e}")))?;
+            return Ok(());
+        } else if abs_path.is_dir() {
+            // Open the directory directly
             std::process::Command::new("explorer.exe")
-                .arg(path.replace('/', "\\"))
+                .arg(abs_path.as_os_str())
                 .spawn()
-                .map_err(|e| FreeFetchError::Io(e.to_string()))?;
-        } else if let Some(parent) = p.parent() {
-            std::process::Command::new("explorer.exe")
-                .arg(parent.to_string_lossy().replace('/', "\\"))
-                .spawn()
-                .map_err(|e| FreeFetchError::Io(e.to_string()))?;
+                .map(|_| ())
+                .map_err(|e| FreeFetchError::Io(format!("Failed to open Explorer: {e}")))?;
+            return Ok(());
+        } else if let Some(parent) = abs_path.parent() {
+            if parent.exists() {
+                // If downloaded file was deleted/moved, open the parent directory
+                std::process::Command::new("explorer.exe")
+                    .arg(parent.as_os_str())
+                    .spawn()
+                    .map(|_| ())
+                    .map_err(|e| FreeFetchError::Io(format!("Failed to open Explorer: {e}")))?;
+                return Ok(());
+            }
         }
+
+        eprintln!(
+            "[FreeFetch] open_containing_folder failed: Neither file nor parent directory exist: {}",
+            abs_path.display()
+        );
+        return Err(FreeFetchError::NotFound(format!(
+            "Directory does not exist: {}",
+            abs_path.display()
+        )));
     }
 
     #[cfg(target_os = "macos")]
     {
-        if let Some(parent) = p.parent() {
+        if abs_path.is_file() {
             std::process::Command::new("open")
-                .arg(parent)
+                .arg("-R")
+                .arg(&abs_path)
                 .spawn()
+                .map(|_| ())
                 .map_err(|e| FreeFetchError::Io(e.to_string()))?;
+            return Ok(());
+        } else if abs_path.is_dir() {
+            std::process::Command::new("open")
+                .arg(&abs_path)
+                .spawn()
+                .map(|_| ())
+                .map_err(|e| FreeFetchError::Io(e.to_string()))?;
+            return Ok(());
+        } else if let Some(parent) = abs_path.parent() {
+            if parent.exists() {
+                std::process::Command::new("open")
+                    .arg(parent)
+                    .spawn()
+                    .map(|_| ())
+                    .map_err(|e| FreeFetchError::Io(e.to_string()))?;
+                return Ok(());
+            }
         }
+        return Err(FreeFetchError::NotFound(format!(
+            "Directory does not exist: {}",
+            abs_path.display()
+        )));
     }
 
     #[cfg(target_os = "linux")]
     {
-        if let Some(parent) = p.parent() {
-            std::process::Command::new("xdg-open")
-                .arg(parent)
-                .spawn()
-                .map_err(|e| FreeFetchError::Io(e.to_string()))?;
+        let target_dir = if abs_path.is_dir() {
+            Some(abs_path.as_path())
+        } else {
+            abs_path.parent()
+        };
+        if let Some(dir) = target_dir {
+            if dir.exists() {
+                std::process::Command::new("xdg-open")
+                    .arg(dir)
+                    .spawn()
+                    .map(|_| ())
+                    .map_err(|e| FreeFetchError::Io(e.to_string()))?;
+                return Ok(());
+            }
         }
+        return Err(FreeFetchError::NotFound(format!(
+            "Directory does not exist: {}",
+            abs_path.display()
+        )));
     }
 
-    Ok(())
+    #[cfg(not(any(target_os = "windows", target_os = "macos", target_os = "linux")))]
+    {
+        Err(FreeFetchError::Io(
+            "Unsupported operating system for opening folders".to_string(),
+        ))
+    }
 }
 
 #[tauri::command]
@@ -648,6 +832,7 @@ pub async fn retry_history_download(
         audio_options,
         video_codec: selected_format.video_codec.clone(),
         audio_codec: selected_format.audio_codec.clone(),
+        http_headers: selected_format.http_headers.clone(),
     };
 
     let new_item = state.queue.add(params).await?;

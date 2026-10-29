@@ -444,6 +444,7 @@ export const App: React.FC = () => {
         audio_options: audioOptions || null,
         video_codec: selectedFormat.video_codec,
         audio_codec: selectedFormat.audio_codec,
+        http_headers: selectedFormat.http_headers || null,
       });
 
       // If user selected subtitles and NOT embedding/hardcoding into video, also enqueue subtitle jobs
@@ -519,6 +520,7 @@ export const App: React.FC = () => {
         audio_options: audioOptions || null,
         video_codec: selectedFormat.video_codec,
         audio_codec: selectedFormat.audio_codec,
+        http_headers: selectedFormat.http_headers || null,
       });
       setActiveTab('queue');
       await loadQueue();
@@ -656,6 +658,10 @@ export const App: React.FC = () => {
   };
 
   const handleOpenFile = async (path: string) => {
+    if (!path || !path.trim()) {
+      setGlobalError('Cannot open file: No destination file path recorded.');
+      return;
+    }
     try {
       await FreeFetchApi.openDownloadedFile(path);
     } catch (err) {
@@ -664,6 +670,10 @@ export const App: React.FC = () => {
   };
 
   const handleOpenFolder = async (path: string) => {
+    if (!path || !path.trim()) {
+      setGlobalError('Cannot open folder: No destination path recorded.');
+      return;
+    }
     try {
       await FreeFetchApi.openContainingFolder(path);
     } catch (err) {

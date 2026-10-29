@@ -187,6 +187,7 @@ impl Extractor for GoogleDriveExtractor {
             download_url: final_download_url,
             requires_merge: false,
             matching_audio_url: None,
+            http_headers: None,
         };
 
         let metadata = MediaMetadata {

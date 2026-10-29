@@ -132,6 +132,7 @@ fn test_youtube_format_classification_and_selection() {
         download_url: "https://example.com/muxed.mp4".to_string(),
         requires_merge: false,
         matching_audio_url: None,
+        http_headers: None,
     };
 
     let f_video_only = MediaFormat {
@@ -151,6 +152,7 @@ fn test_youtube_format_classification_and_selection() {
         download_url: "https://example.com/video_only.mp4".to_string(),
         requires_merge: true,
         matching_audio_url: Some("https://example.com/audio_stream.m4a".to_string()),
+        http_headers: None,
     };
 
     let f_audio_only = MediaFormat {
@@ -170,6 +172,7 @@ fn test_youtube_format_classification_and_selection() {
         download_url: "https://example.com/audio_stream.m4a".to_string(),
         requires_merge: false,
         matching_audio_url: None,
+        http_headers: None,
     };
 
     let mut formats = [f_muxed.clone(), f_video_only.clone(), f_audio_only.clone()];
@@ -314,4 +317,58 @@ fn test_default_app_settings() {
     assert_eq!(settings.max_concurrent_downloads, 3);
     assert_eq!(settings.default_container, "mp4");
     assert!(!settings.download_directory.is_empty());
+}
+
+
+#[test]
+fn test_open_downloaded_file_validations() {
+    use freefetch_lib::core::error::FreeFetchError;
+    use freefetch_lib::ipc::commands::{open_containing_folder, open_downloaded_file};
+
+    // 1. Empty string
+    let res_empty = open_downloaded_file("".to_string());
+    assert!(res_empty.is_err());
+    assert!(matches!(res_empty.unwrap_err(), FreeFetchError::NotFound(_)));
+
+    // 2. Whitespace-only string
+    let res_ws = open_downloaded_file("   ".to_string());
+    assert!(res_ws.is_err());
+    assert!(matches!(res_ws.unwrap_err(), FreeFetchError::NotFound(_)));
+
+    // 3. Nonexistent file path
+    let res_missing = open_downloaded_file("C:/nonexistent_folder/missing_media_file_12345.mp4".to_string());
+    assert!(res_missing.is_err());
+    assert!(matches!(res_missing.unwrap_err(), FreeFetchError::NotFound(_)));
+
+    // 4. Directory path passed to open_downloaded_file
+    let temp_dir = std::env::temp_dir();
+    let res_dir = open_downloaded_file(temp_dir.to_string_lossy().to_string());
+    assert!(res_dir.is_err());
+    assert!(matches!(res_dir.unwrap_err(), FreeFetchError::Io(_)));
+
+    // 5. Empty folder path passed to open_containing_folder
+    let res_folder_empty = open_containing_folder("".to_string());
+    assert!(res_folder_empty.is_err());
+    assert!(matches!(res_folder_empty.unwrap_err(), FreeFetchError::NotFound(_)));
+}
+
+#[test]
+fn test_open_downloaded_file_with_unicode_and_spaces() {
+    use freefetch_lib::ipc::commands::open_downloaded_file;
+    use std::io::Write;
+
+    let mut temp_file_path = std::env::temp_dir();
+    temp_file_path.push("freefetch test media 😔 日本語.mp4");
+
+    {
+        let mut f = std::fs::File::create(&temp_file_path).expect("Create test file");
+        f.write_all(b"dummy video content").expect("Write test content");
+    }
+
+    assert!(temp_file_path.exists());
+
+    let res = open_downloaded_file(temp_file_path.to_string_lossy().to_string());
+    assert!(res.is_ok(), "Expected open_downloaded_file to succeed, got: {:?}", res);
+
+    let _ = std::fs::remove_file(&temp_file_path);
 }

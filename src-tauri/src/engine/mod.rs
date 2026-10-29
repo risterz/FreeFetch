@@ -43,7 +43,6 @@ use crate::media::audio_metadata::AudioMetadata;
 use crate::media::ffmpeg::FfmpegController;
 use crate::storage::Repository;
 use chunk_downloader::{ProgressUpdate, UrlRefresher};
-use parallel_downloader::download_stream_parallel;
 use rate_limiter::RateLimiter;
 use speed_tracker::SpeedTracker;
 use state::{ensure_safe_destination_path_with_reserved, validate_download_url};
@@ -75,6 +74,8 @@ pub struct StartDownloadParams {
     pub video_codec: Option<String>,
     #[serde(default)]
     pub audio_codec: Option<String>,
+    #[serde(default)]
+    pub http_headers: Option<std::collections::HashMap<String, String>>,
 }
 
 impl StartDownloadParams {
@@ -110,6 +111,7 @@ impl Default for StartDownloadParams {
             audio_options: None,
             video_codec: None,
             audio_codec: None,
+            http_headers: None,
         }
     }
 }
@@ -382,6 +384,7 @@ impl EngineManager {
                                 audio_options: None,
                                 video_codec: fmt.video_codec.clone(),
                                 audio_codec: fmt.audio_codec.clone(),
+                                http_headers: fmt.http_headers.clone(),
                             });
                         }
                     }
@@ -407,6 +410,7 @@ impl EngineManager {
                 audio_options: None,
                 video_codec: None,
                 audio_codec: None,
+                http_headers: None,
             })
         } else {
             StartDownloadParams {
@@ -428,6 +432,7 @@ impl EngineManager {
                 audio_options: None,
                 video_codec: None,
                 audio_codec: None,
+                http_headers: None,
             }
         };
 
@@ -847,11 +852,23 @@ async fn run_job(
             Some(params.format_id.as_str())
         };
 
+        let is_audio_job = params.audio_options.is_some()
+            || matches!(
+                params.container.to_lowercase().as_str(),
+                "mp3" | "m4a" | "flac" | "opus"
+            );
+
+        let dl_dest = if is_audio_job {
+            dest.with_extension(format!("{}.part", params.container))
+        } else {
+            dest.to_path_buf()
+        };
+
         controller
             .download_with_progress(
                 &params.source_url,
                 format_selector,
-                dest,
+                &dl_dest,
                 None,
                 Some(cancel_rx.clone()),
                 move |percent, downloaded_bytes, total_bytes, speed_bytes_per_sec| {
@@ -874,6 +891,82 @@ async fn run_job(
                 },
             )
             .await?;
+
+        if is_audio_job {
+            let resolved_opts = params.audio_options.clone().unwrap_or_else(|| {
+                let fmt = AudioTargetFormat::from_str_loose(&params.container)
+                    .unwrap_or(AudioTargetFormat::Mp3);
+                AudioConversionOptions {
+                    target_format: fmt,
+                    quality_preset: AudioQualityPreset::Best,
+                    bitrate_mode: BitrateMode::Cbr,
+                    custom_bitrate_kbps: None,
+                    sample_rate: None,
+                    embed_metadata: true,
+                    embed_artwork: true,
+                    filename_template: None,
+                }
+            });
+
+            let ffmpeg = FfmpegController::discover(settings.ffmpeg_path.as_deref())?;
+            engine.emit_event(
+                "download-state-changed",
+                &DownloadStateChangedPayload {
+                    id: job_id.to_string(),
+                    status: "processing".to_string(),
+                    error_message: None,
+                },
+            );
+            engine.notify_state_changed(job_id, "processing", None);
+            let _ = repo.update_download_status(job_id, &DownloadStatus::Processing, None, None);
+
+            let dest_dir = dest.parent().unwrap_or_else(|| Path::new("."));
+            let artwork_temp =
+                if resolved_opts.embed_artwork && resolved_opts.target_format.supports_artwork() {
+                    if let Some(ref thumb) = params.thumbnail_url {
+                        ArtworkDownloader::download_cover_art(client, thumb, dest_dir, job_id).await
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+            let audio_meta = if resolved_opts.embed_metadata {
+                let m = MediaMetadata {
+                    id: params.format_id.clone(),
+                    url: params.source_url.clone(),
+                    title: params.title.clone(),
+                    duration: params.duration,
+                    thumbnail_url: params.thumbnail_url.clone(),
+                    uploader: None,
+                    service_name: params.service_name.clone(),
+                    description: None,
+                    upload_date: None,
+                };
+                Some(AudioMetadata::from_media_metadata(&m, None, None))
+            } else {
+                None
+            };
+
+            let conv_res = ffmpeg
+                .convert_audio_cancellable(
+                    &dl_dest,
+                    dest,
+                    &resolved_opts,
+                    audio_meta.as_ref(),
+                    artwork_temp.as_deref(),
+                    Some(cancel_rx.clone()),
+                )
+                .await;
+
+            if let Some(ref art) = artwork_temp {
+                ArtworkDownloader::cleanup_cover_art(art).await;
+            }
+
+            conv_res?;
+            let _ = tokio::fs::remove_file(&dl_dest).await;
+        }
 
         return Ok(());
     }
@@ -904,7 +997,7 @@ async fn run_job(
             );
         };
 
-        let url_refresher: Option<UrlRefresher> = if params.service_name == "youtube" {
+        let url_refresher: Option<UrlRefresher> = {
             let reg = registry.clone();
             let src_url = params.source_url.clone();
             let fmt_id = params.format_id.clone();
@@ -932,14 +1025,13 @@ async fn run_job(
                     Ok(found.download_url.clone())
                 })
             }))
-        } else {
-            None
         };
 
+        let headers_arc = params.http_headers.as_ref().map(|h| Arc::new(h.clone()));
         let engine_prog = engine.clone();
         let j_id_prog = j_id.clone();
         let rep_prog = rep.clone();
-        download_stream_parallel(
+        let dl_res = parallel_downloader::download_stream_parallel_with_headers(
             client,
             &params.download_url,
             &part_path,
@@ -947,6 +1039,7 @@ async fn run_job(
             rate_limiter,
             4,
             url_refresher,
+            headers_arc,
             move |p| {
                 let percent = if p.total_bytes > 0 {
                     (p.downloaded_bytes as f64 / p.total_bytes as f64) * 100.0
@@ -972,7 +1065,61 @@ async fn run_job(
             },
             on_status,
         )
-        .await?;
+        .await;
+
+        if let Err(FreeFetchError::Network(ref err_msg)) = dl_res {
+            if err_msg.contains("403") {
+                // If it's a URL supported by yt-dlp, fallback to yt-dlp managed download
+                if let Ok(src_u) = Url::parse(&params.source_url) {
+                    if let Some(ext) = registry.find_extractor(&src_u) {
+                        if ext.name() == "ytdlp" || ext.can_handle(&src_u) {
+                            if let Ok(controller) =
+                                crate::media::YtDlpController::discover(settings.ytdlp_path.as_deref())
+                            {
+                                let engine_fb = engine.clone();
+                                let j_id_fb = job_id.to_string();
+                                let rep_fb = repo.clone();
+                                let format_selector = if params.format_id == "best" {
+                                    None
+                                } else {
+                                    Some(params.format_id.as_str())
+                                };
+                                return controller
+                                    .download_with_progress(
+                                        &params.source_url,
+                                        format_selector,
+                                        dest,
+                                        None,
+                                        Some(cancel_rx.clone()),
+                                        move |percent, downloaded_bytes, total_bytes, speed_bytes_per_sec| {
+                                            let _ = rep_fb.update_download_progress(
+                                                &j_id_fb,
+                                                downloaded_bytes,
+                                                total_bytes,
+                                            );
+                                            engine_fb.emit_event(
+                                                "download-progress",
+                                                &DownloadProgressPayload {
+                                                    id: j_id_fb.clone(),
+                                                    downloaded_bytes,
+                                                    total_bytes,
+                                                    speed_bytes_per_sec,
+                                                    eta_seconds: 0,
+                                                    progress_percent: percent,
+                                                },
+                                            );
+                                        },
+                                    )
+                                    .await;
+                            }
+                        }
+                    }
+                }
+            }
+            return Err(dl_res.unwrap_err());
+        } else {
+            dl_res?;
+        }
 
         // Check if audio conversion is requested (either via explicit audio_options or audio container)
         let is_audio_job = params.audio_options.is_some()
@@ -1196,7 +1343,9 @@ async fn run_job(
             );
         };
 
-        let video_refresher: Option<UrlRefresher> = if params.service_name == "youtube" {
+        let headers_arc = params.http_headers.as_ref().map(|h| Arc::new(h.clone()));
+
+        let video_refresher: Option<UrlRefresher> = {
             let reg = registry.clone();
             let src_url = params.source_url.clone();
             let fmt_id = params.format_id.clone();
@@ -1224,8 +1373,6 @@ async fn run_job(
                     Ok(found.download_url.clone())
                 })
             }))
-        } else {
-            None
         };
 
         let emit_prog_v = emit_combined_progress.clone();
@@ -1237,9 +1384,10 @@ async fn run_job(
             emit_prog_v();
         };
 
+        let headers_v = headers_arc.clone();
         let download_video = async move {
             if !video_finished {
-                let v_bytes = download_stream_parallel(
+                let v_bytes = parallel_downloader::download_stream_parallel_with_headers(
                     &client_v,
                     &video_url,
                     &video_part_clone,
@@ -1247,6 +1395,7 @@ async fn run_job(
                     rate_limiter_v,
                     8, // 8 parallel workers for video stream
                     video_refresher,
+                    headers_v,
                     on_v_prog,
                     on_status_v,
                 )
@@ -1298,7 +1447,7 @@ async fn run_job(
             );
         };
 
-        let audio_refresher: Option<UrlRefresher> = if params.service_name == "youtube" {
+        let audio_refresher: Option<UrlRefresher> = {
             let reg = registry.clone();
             let src_url = params.source_url.clone();
             Some(Arc::new(move || {
@@ -1332,8 +1481,6 @@ async fn run_job(
                     Ok(a_url)
                 })
             }))
-        } else {
-            None
         };
 
         let emit_prog_a = emit_combined_progress.clone();
@@ -1345,9 +1492,10 @@ async fn run_job(
             emit_prog_a();
         };
 
+        let headers_a = headers_arc.clone();
         let download_audio = async move {
             if !audio_finished {
-                let a_bytes = download_stream_parallel(
+                let a_bytes = parallel_downloader::download_stream_parallel_with_headers(
                     &client_a,
                     &audio_url_clone,
                     &audio_part_clone,
@@ -1355,6 +1503,7 @@ async fn run_job(
                     rate_limiter_a,
                     2, // 2 parallel workers for audio
                     audio_refresher,
+                    headers_a,
                     on_a_prog,
                     on_status_a,
                 )

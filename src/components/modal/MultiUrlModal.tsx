@@ -212,6 +212,7 @@ export const MultiUrlModal: React.FC<MultiUrlModalProps> = ({
             : chosenFmt.quality_label,
           destination_dir: null,
           audio_options: audioOpts || null,
+          http_headers: chosenFmt.http_headers || null,
         });
       });
 

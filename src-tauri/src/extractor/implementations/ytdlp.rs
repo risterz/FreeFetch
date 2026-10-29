@@ -154,18 +154,10 @@ fn normalize_universal_ytdlp_dump(
             continue;
         }
 
-        let is_direct_http = f
-            .url
-            .as_ref()
-            .map(|u| u.starts_with("http") && !u.contains(".m3u8"))
-            .unwrap_or(false);
-
-        let download_url = if is_direct_http {
-            f.url.clone().unwrap()
-        } else {
-            // When direct HTTP stream is not exposed, mark for yt-dlp managed download
-            format!("ytdlp://{}#{}", canonical_url, f.format_id)
-        };
+        // Platforms extracted through yt-dlp require extractor-managed downloading
+        // to maintain anti-bot challenge cookies, TLS impersonation, and proper remuxing.
+        let download_url = format!("ytdlp://{}#{}", canonical_url, f.format_id);
+        let format_headers = f.http_headers.clone().or_else(|| dump.http_headers.clone());
 
         if has_video && has_audio {
             // Progressive muxed stream
@@ -187,6 +179,7 @@ fn normalize_universal_ytdlp_dump(
                 download_url,
                 requires_merge: false,
                 matching_audio_url: None,
+                http_headers: format_headers,
             });
         } else if has_video && !has_audio {
             // Video-only adaptive stream: check if best audio can be paired
@@ -218,6 +211,7 @@ fn normalize_universal_ytdlp_dump(
                 download_url,
                 requires_merge,
                 matching_audio_url,
+                http_headers: format_headers,
             });
         } else if has_audio && !has_video {
             // Pure audio stream
@@ -239,6 +233,7 @@ fn normalize_universal_ytdlp_dump(
                 download_url,
                 requires_merge: false,
                 matching_audio_url: None,
+                http_headers: format_headers,
             });
         }
     }
@@ -268,6 +263,7 @@ fn normalize_universal_ytdlp_dump(
             download_url: format!("ytdlp://{canonical_url}#best"),
             requires_merge: false,
             matching_audio_url: None,
+            http_headers: dump.http_headers,
         });
     }
 

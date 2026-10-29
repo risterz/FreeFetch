@@ -2,6 +2,7 @@ use futures_util::StreamExt;
 use reqwest::header::{CONTENT_RANGE, RANGE};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -280,19 +281,46 @@ pub struct StreamProbeInfo {
 }
 
 pub async fn probe_stream(client: &Client, url: &str) -> Result<StreamProbeInfo, FreeFetchError> {
-    let resp = client
-        .get(url)
-        .header("User-Agent", "Mozilla/5.0 FreeFetch/0.1")
-        .header(RANGE, "bytes=0-0")
+    probe_stream_with_headers(client, url, None).await
+}
+
+pub async fn probe_stream_with_headers(
+    client: &Client,
+    url: &str,
+    headers: Option<&HashMap<String, String>>,
+) -> Result<StreamProbeInfo, FreeFetchError> {
+    let mut req = client.get(url).header(RANGE, "bytes=0-0");
+
+    let mut has_ua = false;
+    if let Some(hdrs) = headers {
+        for (k, v) in hdrs {
+            if k.eq_ignore_ascii_case("user-agent") {
+                has_ua = true;
+            }
+            if !k.eq_ignore_ascii_case("range") {
+                if let (Ok(name), Ok(val)) = (
+                    reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                    reqwest::header::HeaderValue::from_str(v),
+                ) {
+                    req = req.header(name, val);
+                }
+            }
+        }
+    }
+    if !has_ua {
+        req = req.header("User-Agent", "Mozilla/5.0 FreeFetch/0.1");
+    }
+
+    let resp = req
         .send()
         .await
         .map_err(|e| FreeFetchError::Network(format!("Stream probe failed: {e}")))?;
 
     let status = resp.status();
     if status == reqwest::StatusCode::FORBIDDEN || status == reqwest::StatusCode::GONE {
+        let classified = classify_http_status(status, "cdn").as_str();
         return Err(FreeFetchError::Network(format!(
-            "[{}] Stream probe rejected: status {status}",
-            classify_http_status(status, "cdn").as_str()
+            "[{classified}] Stream probe rejected: status {status}. Access denied by remote server.",
         )));
     }
 
@@ -327,6 +355,38 @@ pub async fn download_stream_parallel<F, S>(
     rate_limiter: RateLimiter,
     max_concurrency: usize,
     url_refresher: Option<UrlRefresher>,
+    on_progress: F,
+    on_status_change: S,
+) -> Result<u64, FreeFetchError>
+where
+    F: FnMut(ProgressUpdate) + Send + 'static,
+    S: FnMut(DownloadStatus, &str) + Send + 'static,
+{
+    download_stream_parallel_with_headers(
+        client,
+        initial_url,
+        part_path,
+        cancel_rx,
+        rate_limiter,
+        max_concurrency,
+        url_refresher,
+        None,
+        on_progress,
+        on_status_change,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn download_stream_parallel_with_headers<F, S>(
+    client: &Client,
+    initial_url: &str,
+    part_path: &Path,
+    cancel_rx: watch::Receiver<bool>,
+    rate_limiter: RateLimiter,
+    max_concurrency: usize,
+    url_refresher: Option<UrlRefresher>,
+    headers: Option<Arc<HashMap<String, String>>>,
     mut on_progress: F,
     mut on_status_change: S,
 ) -> Result<u64, FreeFetchError>
@@ -339,19 +399,20 @@ where
     }
 
     // Step 1: Probe the stream URL for size and Range capability
-    let probe = probe_stream(client, initial_url).await?;
+    let probe = probe_stream_with_headers(client, initial_url, headers.as_deref()).await?;
 
     let total_bytes = match probe.total_bytes {
         Some(t) if t > 0 => t,
         _ => {
             // Cannot parallelize without total length; fallback to resilient single stream
-            return crate::engine::chunk_downloader::download_stream_resilient(
+            return crate::engine::chunk_downloader::download_stream_resilient_with_headers(
                 client,
                 initial_url,
                 part_path,
                 cancel_rx,
                 rate_limiter,
                 url_refresher,
+                headers.as_deref().cloned(),
                 on_progress,
                 on_status_change,
             )
@@ -361,13 +422,14 @@ where
 
     if !probe.supports_range || total_bytes < 2 * 1024 * 1024 {
         // Fallback to single stream if range not supported or file is very small (< 2 MB)
-        return crate::engine::chunk_downloader::download_stream_resilient(
+        return crate::engine::chunk_downloader::download_stream_resilient_with_headers(
             client,
             initial_url,
             part_path,
             cancel_rx,
             rate_limiter,
             url_refresher,
+            headers.as_deref().cloned(),
             on_progress,
             on_status_change,
         )
@@ -485,6 +547,7 @@ where
         let active_workers = active_workers.clone();
         let is_cancelled = is_cancelled.clone();
         let notify_work = notify_work.clone();
+        let headers = headers.clone();
 
         let handle = tokio::spawn(async move {
             active_workers.fetch_add(1, Ordering::SeqCst);
@@ -557,12 +620,28 @@ where
 
                     let req_range = format!("bytes={request_start}-{}", range.end_byte);
 
-                    let resp_res = client
-                        .get(&current_url)
-                        .header("User-Agent", "Mozilla/5.0 FreeFetch/0.1")
-                        .header(RANGE, req_range.clone())
-                        .send()
-                        .await;
+                    let mut req = client.get(&current_url).header(RANGE, req_range.clone());
+                    let mut has_ua = false;
+                    if let Some(ref hdrs) = headers {
+                        for (k, v) in hdrs.iter() {
+                            if k.eq_ignore_ascii_case("user-agent") {
+                                has_ua = true;
+                            }
+                            if !k.eq_ignore_ascii_case("range") {
+                                if let (Ok(name), Ok(val)) = (
+                                    reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                                    reqwest::header::HeaderValue::from_str(v),
+                                ) {
+                                    req = req.header(name, val);
+                                }
+                            }
+                        }
+                    }
+                    if !has_ua {
+                        req = req.header("User-Agent", "Mozilla/5.0 FreeFetch/0.1");
+                    }
+
+                    let resp_res = req.send().await;
 
                     let resp = match resp_res {
                         Ok(r) => r,

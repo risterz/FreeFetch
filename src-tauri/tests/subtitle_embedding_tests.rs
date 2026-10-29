@@ -156,6 +156,7 @@ fn test_3_audio_subtitle_isolation_invariant_a3() {
         }),
         video_codec: None,
         audio_codec: None,
+        http_headers: None,
     };
 
     // Invariant A3 verification: audio_options present must skip embedding
@@ -400,6 +401,7 @@ fn test_7_no_subtitles_selected_leaves_mp4_unchanged() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+        http_headers: None,
     };
 
     let should_embed = params.embed_subtitles

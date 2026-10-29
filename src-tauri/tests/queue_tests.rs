@@ -77,6 +77,7 @@ fn sample_params(url: &str, format_id: &str, title: &str, dest_dir: &str) -> Sta
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+        http_headers: None,
     }
 }
 

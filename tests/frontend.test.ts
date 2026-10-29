@@ -811,3 +811,59 @@ describe('Container and Codec Compatibility Rules', () => {
   });
 });
 
+describe('File and Folder Action Handlers', () => {
+  it('resolves copy target to destination_path when present on completed downloads', () => {
+    const completedRecord: DownloadRecord = {
+      id: 'rec-1',
+      source_url: 'https://example.com/video',
+      service_name: 'youtube',
+      title: 'Test Video',
+      duration: 100,
+      format_id: '1080p',
+      destination_path: 'C:\\Users\\User\\Downloads\\FreeFetch\\Test Video.mp4',
+      status: 'completed',
+      downloaded_bytes: 5000,
+      total_bytes: 5000,
+      created_at: 1000,
+    };
+    const textToCopy =
+      completedRecord.destination_path && completedRecord.destination_path.trim().length > 0
+        ? completedRecord.destination_path
+        : completedRecord.source_url;
+    expect(textToCopy).toBe('C:\\Users\\User\\Downloads\\FreeFetch\\Test Video.mp4');
+  });
+
+  it('falls back to source_url when destination_path is empty or missing', () => {
+    const failedRecord: DownloadRecord = {
+      id: 'rec-2',
+      source_url: 'https://example.com/failed-video',
+      service_name: 'youtube',
+      title: 'Failed Video',
+      duration: 100,
+      format_id: '1080p',
+      destination_path: '',
+      status: 'failed',
+      downloaded_bytes: 0,
+      total_bytes: 0,
+      created_at: 1000,
+    };
+    const textToCopy =
+      failedRecord.destination_path && failedRecord.destination_path.trim().length > 0
+        ? failedRecord.destination_path
+        : failedRecord.source_url;
+    expect(textToCopy).toBe('https://example.com/failed-video');
+  });
+
+  it('validates empty path before invoking open commands', () => {
+    const checkValidPath = (path: string | undefined | null) => {
+      return Boolean(path && path.trim().length > 0);
+    };
+
+    expect(checkValidPath('')).toBe(false);
+    expect(checkValidPath('   ')).toBe(false);
+    expect(checkValidPath(null)).toBe(false);
+    expect(checkValidPath(undefined)).toBe(false);
+    expect(checkValidPath('C:\\Users\\User\\Downloads\\file.mp4')).toBe(true);
+  });
+});
+

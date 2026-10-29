@@ -81,6 +81,7 @@ fn sample_params(url: &str, format_id: &str, title: &str, dest_dir: &str) -> Sta
         audio_options: None,
         video_codec: None,
         audio_codec: None,
+    http_headers: None,
     }
 }
 
@@ -190,6 +191,7 @@ fn test_format_selection_policy() {
             download_url: "https://example.com/audio.m4a".to_string(),
             requires_merge: false,
             matching_audio_url: None,
+        http_headers: None,
         },
         MediaFormat {
             format_id: "vid_480p".to_string(),
@@ -208,6 +210,7 @@ fn test_format_selection_policy() {
             download_url: "https://example.com/480.mp4".to_string(),
             requires_merge: true,
             matching_audio_url: Some("https://example.com/audio.m4a".to_string()),
+        http_headers: None,
         },
         MediaFormat {
             format_id: "vid_720p".to_string(),
@@ -226,6 +229,7 @@ fn test_format_selection_policy() {
             download_url: "https://example.com/720.mp4".to_string(),
             requires_merge: true,
             matching_audio_url: Some("https://example.com/audio.m4a".to_string()),
+        http_headers: None,
         },
     ];
 

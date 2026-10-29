@@ -1,6 +1,7 @@
 use futures_util::StreamExt;
 use reqwest::header::{CONTENT_LENGTH, RANGE};
 use reqwest::Client;
+use std::collections::HashMap;
 use std::future::Future;
 use std::path::Path;
 use std::pin::Pin;
@@ -246,6 +247,36 @@ pub async fn download_stream_resilient<F, S>(
     cancel_rx: watch::Receiver<bool>,
     rate_limiter: RateLimiter,
     url_refresher: Option<UrlRefresher>,
+    on_progress: F,
+    on_status_change: S,
+) -> Result<u64, FreeFetchError>
+where
+    F: FnMut(ProgressUpdate) + Send + 'static,
+    S: FnMut(DownloadStatus, &str) + Send + 'static,
+{
+    download_stream_resilient_with_headers(
+        client,
+        initial_url,
+        part_path,
+        cancel_rx,
+        rate_limiter,
+        url_refresher,
+        None,
+        on_progress,
+        on_status_change,
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+pub async fn download_stream_resilient_with_headers<F, S>(
+    client: &Client,
+    initial_url: &str,
+    part_path: &Path,
+    cancel_rx: watch::Receiver<bool>,
+    rate_limiter: RateLimiter,
+    url_refresher: Option<UrlRefresher>,
+    headers: Option<HashMap<String, String>>,
     mut on_progress: F,
     mut on_status_change: S,
 ) -> Result<u64, FreeFetchError>
@@ -277,9 +308,26 @@ where
             0
         };
 
-        let mut req = client
-            .get(&current_url)
-            .header("User-Agent", "Mozilla/5.0 FreeFetch/0.1");
+        let mut req = client.get(&current_url);
+        let mut has_ua = false;
+        if let Some(ref hdrs) = headers {
+            for (k, v) in hdrs {
+                if k.eq_ignore_ascii_case("user-agent") {
+                    has_ua = true;
+                }
+                if !k.eq_ignore_ascii_case("range") {
+                    if let (Ok(name), Ok(val)) = (
+                        reqwest::header::HeaderName::from_bytes(k.as_bytes()),
+                        reqwest::header::HeaderValue::from_str(v),
+                    ) {
+                        req = req.header(name, val);
+                    }
+                }
+            }
+        }
+        if !has_ua {
+            req = req.header("User-Agent", "Mozilla/5.0 FreeFetch/0.1");
+        }
         if local_offset > 0 {
             req = req.header(RANGE, format!("bytes={local_offset}-"));
         }

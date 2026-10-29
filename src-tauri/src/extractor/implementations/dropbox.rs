@@ -102,6 +102,7 @@ impl Extractor for DropboxExtractor {
             download_url: direct_url_str.clone(),
             requires_merge: false,
             matching_audio_url: None,
+            http_headers: None,
         };
 
         let metadata = MediaMetadata {

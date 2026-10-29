@@ -38,6 +38,7 @@ export interface MediaFormat {
   download_url: string;
   requires_merge: boolean;
   matching_audio_url?: string | null;
+  http_headers?: Record<string, string> | null;
 }
 
 export type SubtitleFormat = 'srt' | 'vtt';
@@ -146,6 +147,7 @@ export interface StartDownloadParams {
   audio_options?: AudioConversionOptions | null;
   video_codec?: string | null;
   audio_codec?: string | null;
+  http_headers?: Record<string, string> | null;
 }
 
 export interface AppSettings {
