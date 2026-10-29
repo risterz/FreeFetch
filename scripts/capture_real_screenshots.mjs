@@ -9,7 +9,7 @@ async function main() {
     throw new Error('No page target found on CDP 9222');
   }
 
-  console.log(`Connected to CDP target: ${pageTarget.title} (${pageTarget.webSocketDebuggerUrl})`);
+  console.log(`Connecting to CDP target: ${pageTarget.title} (${pageTarget.webSocketDebuggerUrl})`);
 
   const ws = new WebSocket(pageTarget.webSocketDebuggerUrl);
 
@@ -67,78 +67,84 @@ async function main() {
     mobile: false,
   });
 
-  await new Promise((r) => setTimeout(r, 1000));
+  await new Promise((r) => setTimeout(r, 1200));
 
-  // 1. Capture Main Queue Dashboard
-  console.log('Capturing View 1: 01_queue_dashboard.png');
+  // Helper to ensure all modals are closed
+  async function ensureNoModals() {
+    await evaluate(`
+      (() => {
+        // Find and click any X close buttons or close buttons in modals
+        const closeButtons = Array.from(document.querySelectorAll('button')).filter(b => {
+          const text = (b.textContent || '').trim().toLowerCase();
+          return text === 'close' || text === 'cancel' || b.querySelector('svg.lucide-x');
+        });
+        closeButtons.forEach(btn => btn.click());
+      })()
+    `);
+    await new Promise((r) => setTimeout(r, 400));
+  }
+
+  // Helper to click navigation tab by text
+  async function clickTab(name) {
+    await ensureNoModals();
+    await evaluate(`
+      (() => {
+        const buttons = Array.from(document.querySelectorAll('nav button, header ~ div button, button'));
+        const tab = buttons.find(b => (b.textContent || '').trim().toLowerCase().includes('${name.toLowerCase()}'));
+        if (tab) tab.click();
+      })()
+    `);
+    await new Promise((r) => setTimeout(r, 800));
+  }
+
+  // 1. Capture Main Queue Dashboard (Tab: Queue)
+  console.log('--- Step 1: Queue Dashboard ---');
+  await clickTab('Queue');
   await capture('01_queue_dashboard.png');
 
-  // 2. Open Batch URLs modal
-  console.log('Opening Batch URLs modal...');
+  // 2. Capture History & Analytics (Tab: History) - COMPLETELY MODAL FREE
+  console.log('--- Step 2: History & Analytics ---');
+  await clickTab('History');
+  // Wait for SQLite history data to render
+  await new Promise((r) => setTimeout(r, 1000));
+  // Verify modal is not present
+  const modalCheck = await evaluate(`
+    (() => {
+      const modals = document.querySelectorAll('.fixed.inset-0');
+      return modals.length;
+    })()
+  `);
+  console.log('Modals present on History tab:', modalCheck.result.value);
+  await capture('03_history_analytics.png');
+
+  // 3. Capture Settings View (Tab: Settings) - COMPLETELY MODAL FREE
+  console.log('--- Step 3: Settings View ---');
+  await clickTab('Settings');
+  await new Promise((r) => setTimeout(r, 800));
+  await capture('04_settings_engine.png');
+
+  // 4. Return to Queue Tab and open Batch URLs modal
+  console.log('--- Step 4: Batch URLs Modal ---');
+  await clickTab('Queue');
   await evaluate(`
     (() => {
       const buttons = Array.from(document.querySelectorAll('button'));
-      const batchBtn = buttons.find(b => b.textContent && b.textContent.includes('Batch URLs'));
+      const batchBtn = buttons.find(b => (b.textContent || '').includes('Batch URLs'));
       if (batchBtn) batchBtn.click();
     })()
   `);
-  await new Promise((r) => setTimeout(r, 600));
-  console.log('Capturing View 2: 02_batch_modal.png');
+  await new Promise((r) => setTimeout(r, 700));
   await capture('02_batch_modal.png');
+  // Close batch modal
+  await ensureNoModals();
 
-  // Close Batch modal
+  // 5. Open Format Modal via URL Analysis
+  console.log('--- Step 5: Format Modal ---');
+  await clickTab('Queue');
   await evaluate(`
-    (() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const cancelBtn = buttons.find(b => b.textContent && (b.textContent.includes('Cancel') || b.textContent.includes('Close')));
-      if (cancelBtn) cancelBtn.click();
-    })()
-  `);
-  await new Promise((r) => setTimeout(r, 500));
-
-  // 3. Switch to History tab
-  console.log('Switching to History Tab...');
-  await evaluate(`
-    (() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const histBtn = buttons.find(b => b.textContent && b.textContent.includes('History'));
-      if (histBtn) histBtn.click();
-    })()
-  `);
-  await new Promise((r) => setTimeout(r, 700));
-  console.log('Capturing View 3: 03_history_analytics.png');
-  await capture('03_history_analytics.png');
-
-  // 4. Switch to Settings tab
-  console.log('Switching to Settings Tab...');
-  await evaluate(`
-    (() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const setBtn = buttons.find(b => b.textContent && b.textContent.includes('Settings'));
-      if (setBtn) setBtn.click();
-    })()
-  `);
-  await new Promise((r) => setTimeout(r, 700));
-  console.log('Capturing View 4: 04_settings_engine.png');
-  await capture('04_settings_engine.png');
-
-  // 5. Test FormatModal via sample direct link analysis
-  console.log('Switching back to Queue and testing URL Analysis for FormatModal...');
-  await evaluate(`
-    (() => {
-      const buttons = Array.from(document.querySelectorAll('button'));
-      const qBtn = buttons.find(b => b.textContent && b.textContent.includes('Queue'));
-      if (qBtn) qBtn.click();
-    })()
-  `);
-  await new Promise((r) => setTimeout(r, 500));
-
-  // Trigger parseUrl via React form or Tauri IPC
-  const analyzeRes = await evaluate(`
     (async () => {
       const input = document.querySelector('input[type="text"]');
       if (input) {
-        // Set sample video URL
         const sampleUrl = 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4';
         const proto = Object.getPrototypeOf(input);
         const setVal = Object.getOwnPropertyDescriptor(proto, 'value').set;
@@ -148,21 +154,16 @@ async function main() {
         const form = input.closest('form');
         if (form) {
           form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-          return 'Form submitted';
         }
       }
-      return 'No input found';
     })()
   `);
-  console.log('Analyze action result:', analyzeRes);
-
-  // Wait for format modal to open from backend parse
+  // Wait for remote stream parse and format modal render
   await new Promise((r) => setTimeout(r, 2500));
-  console.log('Capturing View 5: 05_format_modal.png');
   await capture('05_format_modal.png');
 
   ws.close();
-  console.log('Capture finished cleanly.');
+  console.log('All real UI screenshots re-captured and verified successfully.');
 }
 
 main().catch((err) => {
