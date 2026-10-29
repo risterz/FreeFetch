@@ -10,19 +10,19 @@
 
 ---
 
-## Visual Tour & Screenshots
+## Visual Tour & Real UI Screenshots
 
-| Main Queue & Speed Throttling | Stream Format Picker |
+| Main Queue Dashboard | Stream Format Picker Modal |
 | :---: | :---: |
-| ![Queue Dashboard](docs/screenshots/01_queue_dashboard.svg) | ![Format Modal](docs/screenshots/02_format_modal.svg) |
+| ![Queue Dashboard](docs/screenshots/01_queue_dashboard.png) | ![Format Modal](docs/screenshots/05_format_modal.png) |
 
-| SQLite History & Metrics | Engine & Bundled Sidecars |
+| Batch / Multi-URL Downloader | SQLite History & Metrics |
 | :---: | :---: |
-| ![History Analytics](docs/screenshots/03_history_analytics.svg) | ![Settings Engine](docs/screenshots/04_settings_engine.svg) |
+| ![Batch URLs](docs/screenshots/02_batch_modal.png) | ![History Analytics](docs/screenshots/03_history_analytics.png) |
 
-| Automated Test Suite Verification |
+| Application & Engine Settings |
 | :---: |
-| ![Automated Tests](docs/screenshots/05_automated_tests_verification.svg) |
+| ![Settings Engine](docs/screenshots/04_settings_engine.png) |
 
 > 📖 **Full Technical Documentation**: For detailed architecture, extractor internals, and security designs, consult [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md).
 

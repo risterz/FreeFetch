@@ -23,7 +23,7 @@
 ### 2.1 Download Queue Dashboard
 The primary operations view monitors active multi-threaded downloads, bandwidth consumption, progress percentages, and status filters.
 
-![FreeFetch Queue Dashboard](screenshots/01_queue_dashboard.svg)
+![FreeFetch Queue Dashboard](screenshots/01_queue_dashboard.png)
 
 - **Live Speed Throttling**: Real-time aggregated throughput meter with ETA calculation.
 - **Adaptive Stream Support**: Downloads 4K/1080p video and audio feeds simultaneously, then executes non-blocking remuxing via FFmpeg.
@@ -34,7 +34,7 @@ The primary operations view monitors active multi-threaded downloads, bandwidth 
 ### 2.2 Format & Stream Picker Modal
 When a URL is submitted or detected on the system clipboard, the format picker analyzes remote streams and presents available resolutions, containers, and audio bitrates.
 
-![Format Modal Stream Selector](screenshots/02_format_modal.svg)
+![Format Modal Stream Selector](screenshots/05_format_modal.png)
 
 - **Granular Format Table**: View video codecs (H.264, VP9, AV1), container types, estimated file sizes, and audio bitrates.
 - **Subtitle Integration**: Select embedded or burned soft/hard subtitles across multiple language tracks.
@@ -42,10 +42,20 @@ When a URL is submitted or detected on the system clipboard, the format picker a
 
 ---
 
-### 2.3 SQLite History & Download Analytics
+### 2.3 Batch & Multi-URL Downloader
+Queue multiple links simultaneously with unified format presets.
+
+![Batch Download Modal](screenshots/02_batch_modal.png)
+
+- **Bulk Insertion**: Paste multiple URLs separated by newlines.
+- **Batch Processing**: Queues all links into the engine pipeline with automatic concurrency limits.
+
+---
+
+### 2.4 SQLite History & Download Analytics
 FreeFetch maintains an embedded SQLite database tracking every completed, paused, or failed task.
 
-![History and Analytics](screenshots/03_history_analytics.svg)
+![History and Analytics](screenshots/03_history_analytics.png)
 
 - **Operational Metrics**: Aggregated total download count, total data volume transferred, average throughput, and active tasks.
 - **Quick File Operations**: Launch completed media directly in the default system media player or reveal the file in Windows Explorer with one click.
@@ -53,10 +63,10 @@ FreeFetch maintains an embedded SQLite database tracking every completed, paused
 
 ---
 
-### 2.4 Settings & Bundled Engine Health
+### 2.5 Settings & Bundled Engine Health
 Configure local storage paths, network concurrency, and inspect sidecar binary health.
 
-![Engine and Settings](screenshots/04_settings_engine.svg)
+![Engine and Settings](screenshots/04_settings_engine.png)
 
 - **Sidecar Verification**: Displays real-time operational status, binary version, file location, and cryptographic SHA-256 hash for bundled `ffmpeg.exe` and `yt-dlp.exe`.
 - **Concurrency Throttling**: Adjustable concurrent download worker pool (1 to 10 parallel jobs).
@@ -64,11 +74,8 @@ Configure local storage paths, network concurrency, and inspect sidecar binary h
 
 ---
 
-### 2.5 Automated Test Suite & Distribution Matrix
-Every build must pass comprehensive automated regression gates before packaging.
-
-![Automated Test Suite](screenshots/05_automated_tests_verification.svg)
-
+### 2.6 Automated Test Suite Verification
+Every build passes comprehensive automated regression gates before packaging:
 - **Rust Backend Suite**: 181 passing unit tests covering chunk math, rate limiting, token buckets, and state machines.
 - **Multiplatform Integration Suite**: 12 passing integration tests verifying live downloads from YouTube, TikTok, Google Drive, and Dropbox with FFmpeg remuxing.
 - **Frontend Vitest Suite**: 48 passing tests validating UI state, keyboard accessibility, and IPC event bindings.
