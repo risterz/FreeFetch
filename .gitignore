@@ -6,3 +6,5 @@ src-tauri/sidecars/*.exe
 *.log
 *.part
 *.part.meta
+_internal_docs_backup/
+*.bak
