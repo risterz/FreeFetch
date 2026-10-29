@@ -161,7 +161,10 @@ fn normalize_universal_ytdlp_dump(
 
         if has_video && has_audio {
             // Progressive muxed stream
-            let height_label = f.height.map(|h| format!("{h}p")).unwrap_or_else(|| "Source".to_string());
+            let height_label = f
+                .height
+                .map(|h| format!("{h}p"))
+                .unwrap_or_else(|| "Source".to_string());
             parsed_formats.push(MediaFormat {
                 format_id: f.format_id.clone(),
                 format_type: "video".to_string(),
@@ -183,7 +186,10 @@ fn normalize_universal_ytdlp_dump(
             });
         } else if has_video && !has_audio {
             // Video-only adaptive stream: check if best audio can be paired
-            let height_label = f.height.map(|h| format!("{h}p")).unwrap_or_else(|| "Source".to_string());
+            let height_label = f
+                .height
+                .map(|h| format!("{h}p"))
+                .unwrap_or_else(|| "Source".to_string());
             let (requires_merge, matching_audio_url) = if let Some(a) = best_audio {
                 if let Some(ref a_url) = a.url {
                     (true, Some(a_url.clone()))
@@ -215,7 +221,10 @@ fn normalize_universal_ytdlp_dump(
             });
         } else if has_audio && !has_video {
             // Pure audio stream
-            let abr_label = f.abr.map(|a| format!("{} kbps", a as u32)).unwrap_or_else(|| "Audio Stream".to_string());
+            let abr_label = f
+                .abr
+                .map(|a| format!("{} kbps", a as u32))
+                .unwrap_or_else(|| "Audio Stream".to_string());
             parsed_formats.push(MediaFormat {
                 format_id: f.format_id.clone(),
                 format_type: "audio".to_string(),
@@ -240,7 +249,9 @@ fn normalize_universal_ytdlp_dump(
 
     // Deduplicate formats by resolution / container
     parsed_formats.sort_by(|a, b| {
-        b.height.unwrap_or(0).cmp(&a.height.unwrap_or(0))
+        b.height
+            .unwrap_or(0)
+            .cmp(&a.height.unwrap_or(0))
             .then_with(|| b.bitrate.unwrap_or(0).cmp(&a.bitrate.unwrap_or(0)))
     });
 

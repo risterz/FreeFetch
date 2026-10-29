@@ -456,7 +456,7 @@ async fn test_audio_queue_full_lifecycle_and_conversion() {
         }),
         video_codec: None,
         audio_codec: None,
-    http_headers: None,
+        http_headers: None,
     };
 
     let item = queue.add(params).await.unwrap();
@@ -515,7 +515,7 @@ async fn test_audio_and_video_duplicate_isolation() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
-    http_headers: None,
+        http_headers: None,
     };
 
     let audio_params = StartDownloadParams {
@@ -540,7 +540,7 @@ async fn test_audio_and_video_duplicate_isolation() {
         }),
         video_codec: None,
         audio_codec: None,
-    http_headers: None,
+        http_headers: None,
     };
 
     // Queuing video first succeeds

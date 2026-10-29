@@ -13,51 +13,121 @@ pub struct FfmpegController {
     ffmpeg_path: PathBuf,
 }
 
+fn verify_ffmpeg_path(path: &Path) -> bool {
+    if !path.is_file() {
+        return false;
+    }
+    match crate::core::hidden_std_command(path)
+        .arg("-version")
+        .output()
+    {
+        Ok(output) => {
+            if output.status.success() {
+                let stdout = String::from_utf8_lossy(&output.stdout);
+                stdout.contains("ffmpeg version")
+            } else {
+                false
+            }
+        }
+        Err(_) => false,
+    }
+}
+
 impl FfmpegController {
     pub fn discover(custom_path: Option<&str>) -> Result<Self, FreeFetchError> {
         if let Some(cp) = custom_path {
             let p = PathBuf::from(cp);
-            if p.is_file() {
+            if verify_ffmpeg_path(&p) {
                 return Ok(Self { ffmpeg_path: p });
             }
         }
 
-        // Check local sidecars directory or next to executable
+        // 1. Check local sidecars directory or next to executable
         if let Ok(exe) = std::env::current_exe() {
             if let Some(dir) = exe.parent() {
-                let candidate1 = dir.join("ffmpeg.exe");
-                let candidate2 = dir
-                    .join("sidecars")
-                    .join("ffmpeg-x86_64-pc-windows-msvc.exe");
-                if candidate1.is_file() {
-                    return Ok(Self {
-                        ffmpeg_path: candidate1,
-                    });
+                let candidates = [
+                    dir.join("ffmpeg.exe"),
+                    dir.join("sidecars").join("ffmpeg.exe"),
+                    dir.join("sidecars")
+                        .join("ffmpeg-x86_64-pc-windows-msvc.exe"),
+                    dir.join("resources").join("sidecars").join("ffmpeg.exe"),
+                    dir.join("resources").join("ffmpeg.exe"),
+                ];
+                for candidate in &candidates {
+                    if verify_ffmpeg_path(candidate) {
+                        return Ok(Self {
+                            ffmpeg_path: candidate.clone(),
+                        });
+                    }
                 }
-                if candidate2.is_file() {
+            }
+        }
+
+        // 2. Check current working directory or relative sidecars
+        let rel_candidates = [
+            PathBuf::from("sidecars").join("ffmpeg.exe"),
+            PathBuf::from("src-tauri")
+                .join("sidecars")
+                .join("ffmpeg.exe"),
+        ];
+        for candidate in &rel_candidates {
+            if verify_ffmpeg_path(candidate) {
+                if let Ok(abs) = candidate.canonicalize() {
+                    return Ok(Self { ffmpeg_path: abs });
+                }
+                return Ok(Self {
+                    ffmpeg_path: candidate.clone(),
+                });
+            }
+        }
+
+        // 3. Check common package manager paths
+        let common_paths = [
+            PathBuf::from(
+                "C:\\ProgramData\\chocolatey\\lib\\ffmpeg\\tools\\ffmpeg\\bin\\ffmpeg.exe",
+            ),
+            PathBuf::from("C:\\ProgramData\\chocolatey\\bin\\ffmpeg.exe"),
+        ];
+        for candidate in &common_paths {
+            if verify_ffmpeg_path(candidate) {
+                return Ok(Self {
+                    ffmpeg_path: candidate.clone(),
+                });
+            }
+        }
+
+        // 4. Check user local package managers (Scoop / WinGet)
+        if let Some(userprofile) = std::env::var_os("USERPROFILE") {
+            let user_dir = PathBuf::from(userprofile);
+            let user_candidates = [
+                user_dir.join("scoop").join("shims").join("ffmpeg.exe"),
+                user_dir
+                    .join("AppData")
+                    .join("Local")
+                    .join("Microsoft")
+                    .join("WinGet")
+                    .join("Links")
+                    .join("ffmpeg.exe"),
+            ];
+            for candidate in &user_candidates {
+                if verify_ffmpeg_path(candidate) {
                     return Ok(Self {
-                        ffmpeg_path: candidate2,
+                        ffmpeg_path: candidate.clone(),
                     });
                 }
             }
         }
 
-        // Check Chocolatey standard bin
-        let choco_candidate = PathBuf::from("C:\\ProgramData\\chocolatey\\bin\\ffmpeg.exe");
-        if choco_candidate.is_file() {
-            return Ok(Self {
-                ffmpeg_path: choco_candidate,
-            });
-        }
-
-        // Check system PATH
+        // 5. Check system PATH
         if let Ok(output) = crate::core::hidden_std_command("ffmpeg")
             .arg("-version")
             .output()
         {
             if output.status.success() {
+                let resolved = crate::core::resolve_executable_in_path("ffmpeg")
+                    .unwrap_or_else(|| PathBuf::from("ffmpeg"));
                 return Ok(Self {
-                    ffmpeg_path: PathBuf::from("ffmpeg"),
+                    ffmpeg_path: resolved,
                 });
             }
         }

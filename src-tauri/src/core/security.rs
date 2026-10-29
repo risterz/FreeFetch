@@ -107,9 +107,9 @@ pub fn validate_safe_url(url: &Url) -> Result<(), FreeFetchError> {
         )));
     }
 
-    let host = url.host_str().ok_or_else(|| {
-        FreeFetchError::InvalidUrl("Missing host in URL".to_string())
-    })?;
+    let host = url
+        .host_str()
+        .ok_or_else(|| FreeFetchError::InvalidUrl("Missing host in URL".to_string()))?;
 
     let lower_host = host.to_lowercase();
     if lower_host == "localhost"
@@ -174,8 +174,9 @@ pub fn build_ssrf_safe_client(
 
     if let Some(p) = proxy {
         if !p.trim().is_empty() {
-            let proxy_obj = reqwest::Proxy::all(p)
-                .map_err(|e| FreeFetchError::Generic(format!("Invalid proxy configuration: {e}")))?;
+            let proxy_obj = reqwest::Proxy::all(p).map_err(|e| {
+                FreeFetchError::Generic(format!("Invalid proxy configuration: {e}"))
+            })?;
             builder = builder.proxy(proxy_obj);
         }
     }

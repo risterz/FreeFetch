@@ -76,96 +76,117 @@ pub struct YtDlpController {
     binary_path: PathBuf,
 }
 
+fn verify_ytdlp_path(path: &Path) -> bool {
+    if !path.is_file() {
+        return false;
+    }
+    match crate::core::hidden_std_command(path)
+        .arg("--version")
+        .output()
+    {
+        Ok(output) => output.status.success() && !output.stdout.is_empty(),
+        Err(_) => false,
+    }
+}
+
 impl YtDlpController {
     pub fn discover(custom_path: Option<&str>) -> Result<Self, FreeFetchError> {
         if let Some(cp) = custom_path {
             let p = PathBuf::from(cp);
-            if p.is_file() {
+            if verify_ytdlp_path(&p) {
                 return Ok(Self { binary_path: p });
             }
         }
 
-        // Check local sidecars directory or next to running executable
+        // 1. Check local sidecars directory or next to running executable
         if let Ok(exe) = std::env::current_exe() {
             if let Some(dir) = exe.parent() {
-                let candidate1 = dir.join("yt-dlp.exe");
-                let candidate2 = dir
-                    .join("sidecars")
-                    .join("yt-dlp-x86_64-pc-windows-msvc.exe");
-                let candidate3 = dir.join("yt-dlp");
-                if candidate1.is_file() {
-                    return Ok(Self {
-                        binary_path: candidate1,
-                    });
-                }
-                if candidate2.is_file() {
-                    return Ok(Self {
-                        binary_path: candidate2,
-                    });
-                }
-                if candidate3.is_file() {
-                    return Ok(Self {
-                        binary_path: candidate3,
-                    });
+                let candidates = [
+                    dir.join("yt-dlp.exe"),
+                    dir.join("sidecars").join("yt-dlp.exe"),
+                    dir.join("sidecars")
+                        .join("yt-dlp-x86_64-pc-windows-msvc.exe"),
+                    dir.join("resources").join("sidecars").join("yt-dlp.exe"),
+                    dir.join("resources").join("yt-dlp.exe"),
+                    dir.join("yt-dlp"),
+                ];
+                for candidate in &candidates {
+                    if verify_ytdlp_path(candidate) {
+                        return Ok(Self {
+                            binary_path: candidate.clone(),
+                        });
+                    }
                 }
             }
         }
 
-        // Check common Windows package manager paths
+        // 2. Check current working directory or relative sidecars
+        let rel_candidates = [
+            PathBuf::from("sidecars").join("yt-dlp.exe"),
+            PathBuf::from("src-tauri")
+                .join("sidecars")
+                .join("yt-dlp.exe"),
+        ];
+        for candidate in &rel_candidates {
+            if verify_ytdlp_path(candidate) {
+                if let Ok(abs) = candidate.canonicalize() {
+                    return Ok(Self { binary_path: abs });
+                }
+                return Ok(Self {
+                    binary_path: candidate.clone(),
+                });
+            }
+        }
+
+        // 3. Check common Windows package manager paths
         let common_paths = [
             "C:\\ProgramData\\chocolatey\\bin\\yt-dlp.exe",
             "C:\\Users\\Default\\AppData\\Local\\Microsoft\\WinGet\\Links\\yt-dlp.exe",
         ];
         for path_str in &common_paths {
             let p = PathBuf::from(path_str);
-            if p.is_file() {
+            if verify_ytdlp_path(&p) {
                 return Ok(Self { binary_path: p });
             }
         }
 
-        // Check user local bin / scoop / winget
+        // 4. Check user local bin / scoop / winget / Python
         if let Some(userprofile) = std::env::var_os("USERPROFILE") {
             let user_dir = PathBuf::from(userprofile);
-            let scoop_candidate = user_dir.join("scoop").join("shims").join("yt-dlp.exe");
-            if scoop_candidate.is_file() {
-                return Ok(Self {
-                    binary_path: scoop_candidate,
-                });
-            }
-            let winget_candidate = user_dir
-                .join("AppData")
-                .join("Local")
-                .join("Microsoft")
-                .join("WinGet")
-                .join("Links")
-                .join("yt-dlp.exe");
-            if winget_candidate.is_file() {
-                return Ok(Self {
-                    binary_path: winget_candidate,
-                });
-            }
-            let python_script = user_dir
-                .join("AppData")
-                .join("Local")
-                .join("Programs")
-                .join("Python")
-                .join("Python313")
-                .join("Scripts")
-                .join("yt-dlp.exe");
-            if python_script.is_file() {
-                return Ok(Self {
-                    binary_path: python_script,
-                });
+            let user_candidates = [
+                user_dir.join("scoop").join("shims").join("yt-dlp.exe"),
+                user_dir
+                    .join("AppData")
+                    .join("Local")
+                    .join("Microsoft")
+                    .join("WinGet")
+                    .join("Links")
+                    .join("yt-dlp.exe"),
+                user_dir
+                    .join("AppData")
+                    .join("Local")
+                    .join("Programs")
+                    .join("Python")
+                    .join("Python313")
+                    .join("Scripts")
+                    .join("yt-dlp.exe"),
+            ];
+            for candidate in &user_candidates {
+                if verify_ytdlp_path(candidate) {
+                    return Ok(Self {
+                        binary_path: candidate.clone(),
+                    });
+                }
             }
         }
 
-        // Check system PATH and resolve to canonical absolute path
+        // 5. Check system PATH and resolve to canonical absolute path
         if let Ok(output) = crate::core::hidden_std_command("yt-dlp")
             .arg("--version")
             .output()
         {
             if output.status.success() {
-                let resolved = resolve_executable_in_path("yt-dlp")
+                let resolved = crate::core::resolve_executable_in_path("yt-dlp")
                     .unwrap_or_else(|| PathBuf::from("yt-dlp"));
                 return Ok(Self {
                     binary_path: resolved,
@@ -174,7 +195,7 @@ impl YtDlpController {
         }
 
         Err(FreeFetchError::NotFound(
-            "yt-dlp executable could not be found. Please install yt-dlp or specify its path in Settings.".to_string(),
+            "yt-dlp executable could not be found or executed. Please install yt-dlp (e.g. 'winget install yt-dlp'), place yt-dlp.exe in the application folder, or configure its location in Settings > Advanced.".to_string(),
         ))
     }
 
@@ -369,7 +390,8 @@ impl YtDlpController {
 
             // Handle TikTok and anti-bot challenge errors with clear actionable guidance
             if sanitized.contains("Unexpected response from webpage request")
-                || sanitized.contains("attempting impersonation, but no impersonate target is available")
+                || sanitized
+                    .contains("attempting impersonation, but no impersonate target is available")
             {
                 let (has_imp, _) = self.check_impersonation();
                 let help_msg = if !has_imp {
@@ -398,12 +420,11 @@ impl YtDlpController {
             });
         }
 
-        let dump: YtDlpDump = serde_json::from_slice(&output.stdout).map_err(|e| {
-            FreeFetchError::Extractor {
+        let dump: YtDlpDump =
+            serde_json::from_slice(&output.stdout).map_err(|e| FreeFetchError::Extractor {
                 service: "yt-dlp".to_string(),
                 message: format!("Failed to parse metadata JSON: {e}"),
-            }
-        })?;
+            })?;
 
         Ok(dump)
     }
@@ -422,8 +443,7 @@ impl YtDlpController {
         F: Fn(f64, u64, u64, u64) + Send + Sync + 'static,
     {
         let mut cmd = crate::core::hidden_tokio_command(&self.binary_path);
-        cmd.arg("--newline")
-            .arg("--no-warnings");
+        cmd.arg("--newline").arg("--no-warnings");
 
         if let Some(fmt) = format_selector {
             let trimmed = fmt.trim();
@@ -431,7 +451,8 @@ impl YtDlpController {
                 if trimmed == "best" {
                     cmd.arg("-f").arg("bestvideo+bestaudio/best");
                 } else {
-                    cmd.arg("-f").arg(format!("{trimmed}/bestvideo+bestaudio/best"));
+                    cmd.arg("-f")
+                        .arg(format!("{trimmed}/bestvideo+bestaudio/best"));
                 }
             }
         }
@@ -541,7 +562,8 @@ impl YtDlpController {
                         while let Ok(Some(entry)) = entries.next_entry().await {
                             let path = entry.path();
                             if path.is_file() {
-                                if let Some(entry_stem) = path.file_stem().and_then(|s| s.to_str()) {
+                                if let Some(entry_stem) = path.file_stem().and_then(|s| s.to_str())
+                                {
                                     if entry_stem == stem && path != dest {
                                         let _ = tokio::fs::rename(&path, dest).await;
                                         break;
@@ -556,42 +578,6 @@ impl YtDlpController {
 
         Ok(())
     }
-}
-
-fn resolve_executable_in_path(cmd: &str) -> Option<PathBuf> {
-    #[cfg(windows)]
-    {
-        if let Ok(out) = crate::core::hidden_std_command("where.exe").arg(cmd).output() {
-            if out.status.success() {
-                if let Some(first_line) = String::from_utf8_lossy(&out.stdout).lines().next() {
-                    let trimmed = first_line.trim();
-                    if !trimmed.is_empty() {
-                        let p = PathBuf::from(trimmed);
-                        if p.is_file() {
-                            return Some(p);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    #[cfg(not(windows))]
-    {
-        if let Ok(out) = std::process::Command::new("which").arg(cmd).output() {
-            if out.status.success() {
-                if let Some(first_line) = String::from_utf8_lossy(&out.stdout).lines().next() {
-                    let trimmed = first_line.trim();
-                    if !trimmed.is_empty() {
-                        let p = PathBuf::from(trimmed);
-                        if p.is_file() {
-                            return Some(p);
-                        }
-                    }
-                }
-            }
-        }
-    }
-    None
 }
 
 fn truncate_and_sanitize_stdout(stdout: &str) -> String {

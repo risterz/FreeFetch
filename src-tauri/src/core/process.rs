@@ -43,6 +43,43 @@ pub fn hidden_std_command<P: AsRef<std::ffi::OsStr>>(program: P) -> std::process
     cmd
 }
 
+/// Resolves an executable command to an absolute `PathBuf` using system PATH lookup tools.
+pub fn resolve_executable_in_path(cmd: &str) -> Option<std::path::PathBuf> {
+    #[cfg(windows)]
+    {
+        if let Ok(out) = hidden_std_command("where.exe").arg(cmd).output() {
+            if out.status.success() {
+                if let Some(first_line) = String::from_utf8_lossy(&out.stdout).lines().next() {
+                    let trimmed = first_line.trim();
+                    if !trimmed.is_empty() {
+                        let p = std::path::PathBuf::from(trimmed);
+                        if p.is_file() {
+                            return Some(p);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        if let Ok(out) = std::process::Command::new("which").arg(cmd).output() {
+            if out.status.success() {
+                if let Some(first_line) = String::from_utf8_lossy(&out.stdout).lines().next() {
+                    let trimmed = first_line.trim();
+                    if !trimmed.is_empty() {
+                        let p = std::path::PathBuf::from(trimmed);
+                        if p.is_file() {
+                            return Some(p);
+                        }
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

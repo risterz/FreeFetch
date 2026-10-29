@@ -46,13 +46,15 @@ impl Extractor for DropboxExtractor {
         if status == reqwest::StatusCode::NOT_FOUND {
             return Err(FreeFetchError::Extractor {
                 service: "dropbox".to_string(),
-                message: "Dropbox file not found. The link may have expired or been deleted.".to_string(),
+                message: "Dropbox file not found. The link may have expired or been deleted."
+                    .to_string(),
             });
         }
         if status == reqwest::StatusCode::FORBIDDEN || status == reqwest::StatusCode::UNAUTHORIZED {
             return Err(FreeFetchError::Extractor {
                 service: "dropbox".to_string(),
-                message: "Dropbox access denied. The file is private or requires authorization.".to_string(),
+                message: "Dropbox access denied. The file is private or requires authorization."
+                    .to_string(),
             });
         }
 
@@ -83,17 +85,26 @@ impl Extractor for DropboxExtractor {
 
         let resolved_filename = filename.unwrap_or_else(|| "dropbox_file".to_string());
         let container = infer_dropbox_container(&resolved_filename, &content_type);
-        let is_audio = container == "mp3" || container == "m4a" || container == "flac" || container == "wav";
+        let is_audio =
+            container == "mp3" || container == "m4a" || container == "flac" || container == "wav";
 
         let format = MediaFormat {
             format_id: "dropbox-direct".to_string(),
-            format_type: if is_audio { "audio".to_string() } else { "video".to_string() },
+            format_type: if is_audio {
+                "audio".to_string()
+            } else {
+                "video".to_string()
+            },
             quality_label: "Original File".to_string(),
             resolution: Some("Source".to_string()),
             width: None,
             height: None,
             fps: None,
-            video_codec: if is_audio { None } else { Some("auto".to_string()) },
+            video_codec: if is_audio {
+                None
+            } else {
+                Some("auto".to_string())
+            },
             audio_codec: Some("auto".to_string()),
             mime_type: Some(content_type),
             bitrate: None,
@@ -139,7 +150,11 @@ pub fn convert_to_direct_dropbox_url(url: &Url) -> String {
             .collect();
         pairs.push(("dl".to_string(), "1".to_string()));
 
-        cloned.query_pairs_mut().clear().extend_pairs(pairs).finish();
+        cloned
+            .query_pairs_mut()
+            .clear()
+            .extend_pairs(pairs)
+            .finish();
         return cloned.to_string();
     }
 

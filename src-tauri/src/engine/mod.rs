@@ -840,8 +840,7 @@ async fn run_job(
     }
 
     if params.download_url.starts_with("ytdlp://") {
-        let controller =
-            crate::media::YtDlpController::discover(settings.ytdlp_path.as_deref())?;
+        let controller = crate::media::YtDlpController::discover(settings.ytdlp_path.as_deref())?;
         let engine_prog = engine.clone();
         let j_id_prog = job_id.to_string();
         let rep_prog = repo.clone();
@@ -1073,9 +1072,9 @@ async fn run_job(
                 if let Ok(src_u) = Url::parse(&params.source_url) {
                     if let Some(ext) = registry.find_extractor(&src_u) {
                         if ext.name() == "ytdlp" || ext.can_handle(&src_u) {
-                            if let Ok(controller) =
-                                crate::media::YtDlpController::discover(settings.ytdlp_path.as_deref())
-                            {
+                            if let Ok(controller) = crate::media::YtDlpController::discover(
+                                settings.ytdlp_path.as_deref(),
+                            ) {
                                 let engine_fb = engine.clone();
                                 let j_id_fb = job_id.to_string();
                                 let rep_fb = repo.clone();

@@ -83,7 +83,10 @@ impl Extractor for GoogleDriveExtractor {
                 .and_then(|v| v.to_str().ok())
                 .and_then(|v| v.parse::<u64>().ok());
 
-            if let Some(cd) = headers.get(CONTENT_DISPOSITION).and_then(|v| v.to_str().ok()) {
+            if let Some(cd) = headers
+                .get(CONTENT_DISPOSITION)
+                .and_then(|v| v.to_str().ok())
+            {
                 resolved_filename = parse_content_disposition_filename(cd);
             }
         } else {
@@ -105,7 +108,10 @@ impl Extractor for GoogleDriveExtractor {
                 message: format!("Failed to read Google Drive page: {e}"),
             })?;
 
-            if html.contains("You need access") || html.contains("Request access") || html.contains("Sign in") {
+            if html.contains("You need access")
+                || html.contains("Request access")
+                || html.contains("Sign in")
+            {
                 return Err(FreeFetchError::Extractor {
                     service: "google_drive".to_string(),
                     message: "Google Drive file is private. Please ensure 'Anyone with the link' can view this file.".to_string(),
@@ -133,7 +139,10 @@ impl Extractor for GoogleDriveExtractor {
             }
 
             // Send confirmation request to get final redirect URL and headers
-            let mut req = ctx.client.get(&confirm_url).header("User-Agent", &ctx.user_agent);
+            let mut req = ctx
+                .client
+                .get(&confirm_url)
+                .header("User-Agent", &ctx.user_agent);
             if !cookie_header.is_empty() {
                 req = req.header("Cookie", cookie_header);
             }
@@ -146,12 +155,17 @@ impl Extractor for GoogleDriveExtractor {
             if confirm_res.status() == reqwest::StatusCode::FORBIDDEN {
                 return Err(FreeFetchError::Extractor {
                     service: "google_drive".to_string(),
-                    message: "Google Drive download limit reached or access forbidden for this file.".to_string(),
+                    message:
+                        "Google Drive download limit reached or access forbidden for this file."
+                            .to_string(),
                 });
             }
 
             let c_headers = confirm_res.headers();
-            if let Some(cd) = c_headers.get(CONTENT_DISPOSITION).and_then(|v| v.to_str().ok()) {
+            if let Some(cd) = c_headers
+                .get(CONTENT_DISPOSITION)
+                .and_then(|v| v.to_str().ok())
+            {
                 if let Some(fn_extracted) = parse_content_disposition_filename(cd) {
                     resolved_filename = Some(fn_extracted);
                 }
@@ -168,17 +182,26 @@ impl Extractor for GoogleDriveExtractor {
         let fallback_title = format!("Google_Drive_File_{file_id}");
         let filename = resolved_filename.unwrap_or(fallback_title);
         let container = infer_container(&filename, &content_type);
-        let is_audio = container == "mp3" || container == "m4a" || container == "flac" || container == "wav";
+        let is_audio =
+            container == "mp3" || container == "m4a" || container == "flac" || container == "wav";
 
         let format = MediaFormat {
             format_id: format!("gdrive-{file_id}"),
-            format_type: if is_audio { "audio".to_string() } else { "video".to_string() },
+            format_type: if is_audio {
+                "audio".to_string()
+            } else {
+                "video".to_string()
+            },
             quality_label: "Original File".to_string(),
             resolution: Some("Source".to_string()),
             width: None,
             height: None,
             fps: None,
-            video_codec: if is_audio { None } else { Some("auto".to_string()) },
+            video_codec: if is_audio {
+                None
+            } else {
+                Some("auto".to_string())
+            },
             audio_codec: Some("auto".to_string()),
             mime_type: Some(content_type),
             bitrate: None,
@@ -218,7 +241,10 @@ pub fn extract_gdrive_file_id(url: &Url) -> Option<String> {
     // Check path: /file/d/{id}/...
     if let Some(idx) = path.find("/file/d/") {
         let remainder = &path[idx + 8..];
-        let file_id: String = remainder.chars().take_while(|c| *c != '/' && *c != '?').collect();
+        let file_id: String = remainder
+            .chars()
+            .take_while(|c| *c != '/' && *c != '?')
+            .collect();
         if !file_id.is_empty() {
             return Some(file_id);
         }
@@ -227,7 +253,10 @@ pub fn extract_gdrive_file_id(url: &Url) -> Option<String> {
     // Check path: /d/{id}/...
     if let Some(idx) = path.find("/d/") {
         let remainder = &path[idx + 3..];
-        let file_id: String = remainder.chars().take_while(|c| *c != '/' && *c != '?').collect();
+        let file_id: String = remainder
+            .chars()
+            .take_while(|c| *c != '/' && *c != '?')
+            .collect();
         if !file_id.is_empty() {
             return Some(file_id);
         }
@@ -275,8 +304,12 @@ fn urlencoding_decode(s: &str) -> Result<String, FreeFetchError> {
     let mut chars = s.bytes();
     while let Some(b) = chars.next() {
         if b == b'%' {
-            let h1 = chars.next().ok_or_else(|| FreeFetchError::Generic("Invalid percent encoding".to_string()))?;
-            let h2 = chars.next().ok_or_else(|| FreeFetchError::Generic("Invalid percent encoding".to_string()))?;
+            let h1 = chars
+                .next()
+                .ok_or_else(|| FreeFetchError::Generic("Invalid percent encoding".to_string()))?;
+            let h2 = chars
+                .next()
+                .ok_or_else(|| FreeFetchError::Generic("Invalid percent encoding".to_string()))?;
             let hex_bytes = [h1, h2];
             let hex_str = std::str::from_utf8(&hex_bytes)
                 .map_err(|_| FreeFetchError::Generic("Invalid utf8 hex in encoding".to_string()))?;

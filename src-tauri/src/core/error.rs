@@ -30,7 +30,7 @@ pub enum FreeFetchError {
     #[error("I/O error: {0}")]
     Io(String),
 
-    #[error("FFmpeg binary not found on system")]
+    #[error("FFmpeg executable not found or could not be executed. Please install FFmpeg (e.g. 'winget install Gyan.FFmpeg'), place ffmpeg.exe in the application folder, or configure its path in Settings > Advanced.")]
     FfmpegNotFound,
 
     #[error("Incompatible codec for container {container}: {message}")]
@@ -90,7 +90,7 @@ impl Serialize for FreeFetchError {
             FreeFetchError::Io(msg) => ("Io", msg.clone()),
             FreeFetchError::FfmpegNotFound => (
                 "FfmpegNotFound",
-                "FFmpeg binary not found on system".to_string(),
+                "FFmpeg executable not found or could not be executed. Please install FFmpeg (e.g. 'winget install Gyan.FFmpeg'), place ffmpeg.exe in the application folder, or configure its path in Settings > Advanced.".to_string(),
             ),
             FreeFetchError::IncompatibleContainerCodec { container, message } => {
                 map.serialize_entry("container", container)?;

@@ -189,8 +189,14 @@ pub fn check_ffmpeg_status(state: State<'_, AppState>) -> Result<String, FreeFet
 pub fn check_ytdlp_status(state: State<'_, AppState>) -> Result<String, FreeFetchError> {
     let settings = state.settings.lock().unwrap();
     let controller = crate::media::YtDlpController::discover(settings.ytdlp_path.as_deref())?;
-    let ver = controller.get_version().unwrap_or_else(|_| "Available".to_string());
-    Ok(format!("{}: {}", controller.binary_path().to_string_lossy(), ver))
+    let ver = controller
+        .get_version()
+        .unwrap_or_else(|_| "Available".to_string());
+    Ok(format!(
+        "{}: {}",
+        controller.binary_path().to_string_lossy(),
+        ver
+    ))
 }
 
 #[tauri::command]
@@ -207,9 +213,7 @@ pub async fn diagnose_ytdlp(
 }
 
 #[tauri::command]
-pub async fn update_ytdlp(
-    state: State<'_, AppState>,
-) -> Result<String, FreeFetchError> {
+pub async fn update_ytdlp(state: State<'_, AppState>) -> Result<String, FreeFetchError> {
     let settings = {
         let s = state.settings.lock().unwrap();
         s.clone()
@@ -313,7 +317,10 @@ pub fn open_downloaded_file(path: String) -> Result<(), FreeFetchError> {
         )));
     }
 
-    eprintln!("[FreeFetch] Opening downloaded file: {}", abs_path.display());
+    eprintln!(
+        "[FreeFetch] Opening downloaded file: {}",
+        abs_path.display()
+    );
 
     #[cfg(target_os = "windows")]
     {
@@ -321,14 +328,18 @@ pub fn open_downloaded_file(path: String) -> Result<(), FreeFetchError> {
         match win_shell::shell_open(&abs_path) {
             Ok(()) => Ok(()),
             Err(shell_err) => {
-                eprintln!("[FreeFetch] ShellExecuteW failed ({shell_err}), falling back to explorer.exe");
+                eprintln!(
+                    "[FreeFetch] ShellExecuteW failed ({shell_err}), falling back to explorer.exe"
+                );
                 // Fallback to launching via explorer.exe
                 std::process::Command::new("explorer.exe")
                     .arg(abs_path.as_os_str())
                     .spawn()
                     .map(|_| ())
                     .map_err(|io_err| {
-                        FreeFetchError::Io(format!("{shell_err}; Explorer fallback failed: {io_err}"))
+                        FreeFetchError::Io(format!(
+                            "{shell_err}; Explorer fallback failed: {io_err}"
+                        ))
                     })
             }
         }
@@ -364,9 +375,7 @@ pub fn open_downloaded_file(path: String) -> Result<(), FreeFetchError> {
 pub fn open_containing_folder(path: String) -> Result<(), FreeFetchError> {
     let trimmed = path.trim();
     if trimmed.is_empty() {
-        return Err(FreeFetchError::NotFound(
-            "Folder path is empty".to_string(),
-        ));
+        return Err(FreeFetchError::NotFound("Folder path is empty".to_string()));
     }
 
     let clean_path = trimmed.replace('/', "\\");
@@ -416,10 +425,10 @@ pub fn open_containing_folder(path: String) -> Result<(), FreeFetchError> {
             "[FreeFetch] open_containing_folder failed: Neither file nor parent directory exist: {}",
             abs_path.display()
         );
-        return Err(FreeFetchError::NotFound(format!(
+        Err(FreeFetchError::NotFound(format!(
             "Directory does not exist: {}",
             abs_path.display()
-        )));
+        )))
     }
 
     #[cfg(target_os = "macos")]

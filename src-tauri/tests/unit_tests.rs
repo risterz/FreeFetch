@@ -319,7 +319,6 @@ fn test_default_app_settings() {
     assert!(!settings.download_directory.is_empty());
 }
 
-
 #[test]
 fn test_open_downloaded_file_validations() {
     use freefetch_lib::core::error::FreeFetchError;
@@ -328,7 +327,10 @@ fn test_open_downloaded_file_validations() {
     // 1. Empty string
     let res_empty = open_downloaded_file("".to_string());
     assert!(res_empty.is_err());
-    assert!(matches!(res_empty.unwrap_err(), FreeFetchError::NotFound(_)));
+    assert!(matches!(
+        res_empty.unwrap_err(),
+        FreeFetchError::NotFound(_)
+    ));
 
     // 2. Whitespace-only string
     let res_ws = open_downloaded_file("   ".to_string());
@@ -336,9 +338,13 @@ fn test_open_downloaded_file_validations() {
     assert!(matches!(res_ws.unwrap_err(), FreeFetchError::NotFound(_)));
 
     // 3. Nonexistent file path
-    let res_missing = open_downloaded_file("C:/nonexistent_folder/missing_media_file_12345.mp4".to_string());
+    let res_missing =
+        open_downloaded_file("C:/nonexistent_folder/missing_media_file_12345.mp4".to_string());
     assert!(res_missing.is_err());
-    assert!(matches!(res_missing.unwrap_err(), FreeFetchError::NotFound(_)));
+    assert!(matches!(
+        res_missing.unwrap_err(),
+        FreeFetchError::NotFound(_)
+    ));
 
     // 4. Directory path passed to open_downloaded_file
     let temp_dir = std::env::temp_dir();
@@ -349,7 +355,10 @@ fn test_open_downloaded_file_validations() {
     // 5. Empty folder path passed to open_containing_folder
     let res_folder_empty = open_containing_folder("".to_string());
     assert!(res_folder_empty.is_err());
-    assert!(matches!(res_folder_empty.unwrap_err(), FreeFetchError::NotFound(_)));
+    assert!(matches!(
+        res_folder_empty.unwrap_err(),
+        FreeFetchError::NotFound(_)
+    ));
 }
 
 #[test]
@@ -362,13 +371,18 @@ fn test_open_downloaded_file_with_unicode_and_spaces() {
 
     {
         let mut f = std::fs::File::create(&temp_file_path).expect("Create test file");
-        f.write_all(b"dummy video content").expect("Write test content");
+        f.write_all(b"dummy video content")
+            .expect("Write test content");
     }
 
     assert!(temp_file_path.exists());
 
     let res = open_downloaded_file(temp_file_path.to_string_lossy().to_string());
-    assert!(res.is_ok(), "Expected open_downloaded_file to succeed, got: {:?}", res);
+    assert!(
+        res.is_ok(),
+        "Expected open_downloaded_file to succeed, got: {:?}",
+        res
+    );
 
     let _ = std::fs::remove_file(&temp_file_path);
 }

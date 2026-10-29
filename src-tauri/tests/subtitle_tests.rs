@@ -110,7 +110,7 @@ async fn test_subtitle_queue_format_and_deduplication() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
-    http_headers: None,
+        http_headers: None,
     };
 
     let subs = vec![
@@ -161,7 +161,7 @@ async fn test_subtitle_queue_format_and_deduplication() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
-    http_headers: None,
+        http_headers: None,
     };
 
     let res = queue.add(dup_sub).await;
@@ -195,7 +195,7 @@ async fn test_subtitle_failure_isolation() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
-    http_headers: None,
+        http_headers: None,
     };
 
     let sub_params = StartDownloadParams {
@@ -217,7 +217,7 @@ async fn test_subtitle_failure_isolation() {
         audio_options: None,
         video_codec: None,
         audio_codec: None,
-    http_headers: None,
+        http_headers: None,
     };
 
     let media_item = queue.add(media_params).await.unwrap();

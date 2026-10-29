@@ -1,0 +1,179 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 780" width="1200" height="780" style="background:#0f172a; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#0d9488" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#1e293b" />
+      <stop offset="100%" stop-color="#0f172a" />
+    </linearGradient>
+  </defs>
+
+  <!-- Titlebar -->
+  <rect x="0" y="0" width="1200" height="40" fill="#090d16" />
+  <circle cx="20" cy="20" r="6" fill="#ef4444" />
+  <circle cx="40" cy="20" r="6" fill="#f59e0b" />
+  <circle cx="60" cy="20" r="6" fill="#10b981" />
+  <text x="600" y="25" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="500">FreeFetch v0.1.0 — Download History &amp; Analytics</text>
+
+  <!-- App Header -->
+  <rect x="0" y="40" width="1200" height="74" fill="#1e293b" />
+  <g transform="translate(32, 54)">
+    <rect x="0" y="0" width="46" height="46" rx="12" fill="url(#headerGrad)" />
+    <path d="M23 12 v16 M16 21 l7 7 l7 -7 M14 34 h18" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+    <text x="58" y="24" fill="#f8fafc" font-size="20" font-weight="700">FreeFetch</text>
+    <text x="58" y="40" fill="#94a3b8" font-size="12">Persistent Embedded SQLite History &amp; Analytics Repository</text>
+  </g>
+
+  <!-- Sidecar Badges -->
+  <g transform="translate(930, 62)">
+    <rect x="0" y="0" width="130" height="28" rx="14" fill="#064e3b" stroke="#059669" stroke-width="1" />
+    <circle cx="16" cy="14" r="4" fill="#10b981" />
+    <text x="70" y="18" fill="#a7f3d0" font-size="11" font-weight="600" text-anchor="middle">FFmpeg Ready</text>
+
+    <rect x="140" y="0" width="98" height="28" rx="14" fill="#064e3b" stroke="#059669" stroke-width="1" />
+    <circle cx="154" cy="14" r="4" fill="#10b981" />
+    <text x="194" y="18" fill="#a7f3d0" font-size="11" font-weight="600" text-anchor="middle">yt-dlp Active</text>
+  </g>
+
+  <!-- Tab Navigation -->
+  <g transform="translate(32, 126)">
+    <rect x="0" y="0" width="110" height="38" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="55" y="24" fill="#94a3b8" font-size="13" font-weight="500" text-anchor="middle">Queue (0)</text>
+
+    <rect x="120" y="0" width="140" height="38" rx="10" fill="#059669" />
+    <text x="190" y="24" fill="#ffffff" font-size="13" font-weight="600" text-anchor="middle">History (142)</text>
+
+    <rect x="270" y="0" width="110" height="38" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="325" y="24" fill="#94a3b8" font-size="13" font-weight="500" text-anchor="middle">Settings</text>
+  </g>
+
+  <!-- 4 Analytics Metric Cards -->
+  <g transform="translate(32, 178)">
+    <!-- Total Downloads -->
+    <rect x="0" y="0" width="266" height="88" rx="14" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="20" y="32" fill="#94a3b8" font-size="12" font-weight="500">TOTAL COMPLETED</text>
+    <text x="20" y="68" fill="#f8fafc" font-size="28" font-weight="700">142</text>
+    <text x="120" y="66" fill="#10b981" font-size="12" font-weight="600">✓ 99.3% Success</text>
+
+    <!-- Total Data Downloaded -->
+    <rect x="290" y="0" width="266" height="88" rx="14" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="20" y="32" fill="#94a3b8" font-size="12" font-weight="500">DATA DELIVERED</text>
+    <text x="20" y="68" fill="#38bdf8" font-size="28" font-weight="700">84.6 GB</text>
+    <text x="156" y="66" fill="#94a3b8" font-size="12">16-Part Range</text>
+
+    <!-- Peak Bandwidth -->
+    <rect x="580" y="0" width="266" height="88" rx="14" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="20" y="32" fill="#94a3b8" font-size="12" font-weight="500">AVERAGE SPEED</text>
+    <text x="20" y="68" fill="#10b981" font-size="28" font-weight="700">18.4 MB/s</text>
+    <text x="180" y="66" fill="#a7f3d0" font-size="12">Peak: 38.2 MB/s</text>
+
+    <!-- Database Storage -->
+    <rect x="870" y="0" width="266" height="88" rx="14" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="20" y="32" fill="#94a3b8" font-size="12" font-weight="500">SQLITE WAL STORAGE</text>
+    <text x="20" y="68" fill="#f59e0b" font-size="28" font-weight="700">1.8 MB</text>
+    <text x="136" y="66" fill="#94a3b8" font-size="12">freefetch.db</text>
+  </g>
+
+  <!-- Filter Bar & Export Actions -->
+  <g transform="translate(32, 280)">
+    <rect x="0" y="0" width="460" height="42" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="18" y="26" fill="#64748b" font-size="13">Search history by title, service, format...</text>
+
+    <rect x="472" y="0" width="90" height="42" rx="10" fill="#059669" />
+    <text x="517" y="26" fill="#fff" font-size="12" font-weight="600" text-anchor="middle">All (142)</text>
+
+    <rect x="572" y="0" width="100" height="42" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="622" y="26" fill="#94a3b8" font-size="12" font-weight="500" text-anchor="middle">YouTube (98)</text>
+
+    <rect x="682" y="0" width="90" height="42" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="727" y="26" fill="#94a3b8" font-size="12" font-weight="500" text-anchor="middle">TikTok (24)</text>
+
+    <rect x="782" y="0" width="80" height="42" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="822" y="26" fill="#94a3b8" font-size="12" font-weight="500" text-anchor="middle">Audio (20)</text>
+
+    <!-- Exports -->
+    <rect x="914" y="0" width="106" height="42" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1" />
+    <text x="967" y="26" fill="#cbd5e1" font-size="12" font-weight="600" text-anchor="middle">Export CSV</text>
+
+    <rect x="1030" y="0" width="106" height="42" rx="10" fill="#1e293b" stroke="#475569" stroke-width="1" />
+    <text x="1083" y="26" fill="#cbd5e1" font-size="12" font-weight="600" text-anchor="middle">Export JSON</text>
+  </g>
+
+  <!-- Table Header -->
+  <g transform="translate(32, 336)">
+    <rect x="0" y="0" width="1136" height="38" rx="8" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="20" y="24" fill="#94a3b8" font-size="12" font-weight="600">TITLE &amp; SOURCE</text>
+    <text x="560" y="24" fill="#94a3b8" font-size="12" font-weight="600">FORMAT</text>
+    <text x="700" y="24" fill="#94a3b8" font-size="12" font-weight="600">SIZE</text>
+    <text x="820" y="24" fill="#94a3b8" font-size="12" font-weight="600">DATE</text>
+    <text x="980" y="24" fill="#94a3b8" font-size="12" font-weight="600">ACTIONS</text>
+  </g>
+
+  <!-- Record Row 1 -->
+  <g transform="translate(32, 382)">
+    <rect x="0" y="0" width="1136" height="64" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="20" y="28" fill="#f8fafc" font-size="14" font-weight="600">Rick Astley - Never Gonna Give You Up (Official Video) [4K Remaster]</text>
+    <text x="20" y="48" fill="#10b981" font-size="11">YouTube • dQw4w9WgXcQ • Soft Subtitles Embedded</text>
+    <text x="560" y="37" fill="#cbd5e1" font-size="12">2160p (MP4)</text>
+    <text x="700" y="37" fill="#cbd5e1" font-size="12">412.5 MB</text>
+    <text x="820" y="37" fill="#94a3b8" font-size="12">Today 19:15</text>
+    <!-- Buttons -->
+    <rect x="940" y="16" width="86" height="32" rx="6" fill="#065f46" stroke="#059669" stroke-width="1" />
+    <text x="983" y="36" fill="#ffffff" font-size="11" font-weight="600" text-anchor="middle">Open File</text>
+    <rect x="1036" y="16" width="86" height="32" rx="6" fill="#334155" />
+    <text x="1079" y="36" fill="#cbd5e1" font-size="11" font-weight="500" text-anchor="middle">Explorer</text>
+  </g>
+
+  <!-- Record Row 2 -->
+  <g transform="translate(32, 454)">
+    <rect x="0" y="0" width="1136" height="64" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="20" y="28" fill="#f8fafc" font-size="14" font-weight="600">Viral Choreography Performance 2026</text>
+    <text x="20" y="48" fill="#38bdf8" font-size="11">TikTok • 7692418604607868180 • curl_cffi Impersonation Active</text>
+    <text x="560" y="37" fill="#cbd5e1" font-size="12">1080p (MP4)</text>
+    <text x="700" y="37" fill="#cbd5e1" font-size="12">28.4 MB</text>
+    <text x="820" y="37" fill="#94a3b8" font-size="12">Today 18:42</text>
+    <rect x="940" y="16" width="86" height="32" rx="6" fill="#065f46" stroke="#059669" stroke-width="1" />
+    <text x="983" y="36" fill="#ffffff" font-size="11" font-weight="600" text-anchor="middle">Open File</text>
+    <rect x="1036" y="16" width="86" height="32" rx="6" fill="#334155" />
+    <text x="1079" y="36" fill="#cbd5e1" font-size="11" font-weight="500" text-anchor="middle">Explorer</text>
+  </g>
+
+  <!-- Record Row 3 -->
+  <g transform="translate(32, 526)">
+    <rect x="0" y="0" width="1136" height="64" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="20" y="28" fill="#f8fafc" font-size="14" font-weight="600">Ludwig van Beethoven - Symphony No. 9 in D minor</text>
+    <text x="20" y="48" fill="#a855f7" font-size="11">Audio Extraction • ID3v2 Tags &amp; Thumbnail Art Embedded</text>
+    <text x="560" y="37" fill="#cbd5e1" font-size="12">320k (MP3)</text>
+    <text x="700" y="37" fill="#cbd5e1" font-size="12">164.2 MB</text>
+    <text x="820" y="37" fill="#94a3b8" font-size="12">Yesterday</text>
+    <rect x="940" y="16" width="86" height="32" rx="6" fill="#065f46" stroke="#059669" stroke-width="1" />
+    <text x="983" y="36" fill="#ffffff" font-size="11" font-weight="600" text-anchor="middle">Open File</text>
+    <rect x="1036" y="16" width="86" height="32" rx="6" fill="#334155" />
+    <text x="1079" y="36" fill="#cbd5e1" font-size="11" font-weight="500" text-anchor="middle">Explorer</text>
+  </g>
+
+  <!-- Record Row 4 -->
+  <g transform="translate(32, 598)">
+    <rect x="0" y="0" width="1136" height="64" rx="10" fill="#1e293b" stroke="#334155" stroke-width="1" />
+    <text x="20" y="28" fill="#f8fafc" font-size="14" font-weight="600">Research_Archive_Dataset_2026.tar.gz</text>
+    <text x="20" y="48" fill="#eab308" font-size="11">Google Drive Direct • 16-Segment High-Throughput HTTP Range</text>
+    <text x="560" y="37" fill="#cbd5e1" font-size="12">Archive (Binary)</text>
+    <text x="700" y="37" fill="#cbd5e1" font-size="12">1.82 GB</text>
+    <text x="820" y="37" fill="#94a3b8" font-size="12">Oct 27</text>
+    <rect x="940" y="16" width="86" height="32" rx="6" fill="#065f46" stroke="#059669" stroke-width="1" />
+    <text x="983" y="36" fill="#ffffff" font-size="11" font-weight="600" text-anchor="middle">Open File</text>
+    <rect x="1036" y="16" width="86" height="32" rx="6" fill="#334155" />
+    <text x="1079" y="36" fill="#cbd5e1" font-size="11" font-weight="500" text-anchor="middle">Explorer</text>
+  </g>
+
+  <!-- Pagination -->
+  <g transform="translate(32, 678)">
+    <text x="0" y="20" fill="#94a3b8" font-size="12">Showing 1-4 of 142 records (Page 1 of 36)</text>
+    <rect x="960" y="0" width="80" height="32" rx="6" fill="#334155" />
+    <text x="1000" y="20" fill="#cbd5e1" font-size="12" text-anchor="middle">Previous</text>
+    <rect x="1050" y="0" width="86" height="32" rx="6" fill="#059669" />
+    <text x="1093" y="20" fill="#ffffff" font-size="12" font-weight="600" text-anchor="middle">Next &gt;</text>
+  </g>
+</svg>

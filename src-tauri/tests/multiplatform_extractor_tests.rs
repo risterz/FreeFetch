@@ -1,6 +1,4 @@
-use freefetch_lib::core::security::{
-    is_safe_ip, sanitize_sensitive_text, validate_safe_url,
-};
+use freefetch_lib::core::security::{is_safe_ip, sanitize_sensitive_text, validate_safe_url};
 use freefetch_lib::engine::chunk_downloader::download_stream_resilient_with_headers;
 use freefetch_lib::engine::parallel_downloader::probe_stream_with_headers;
 use freefetch_lib::engine::rate_limiter::RateLimiter;
@@ -165,61 +163,82 @@ fn test_extractor_registry_routing() {
 
     // 1. YouTube routing
     let yt_url = Url::parse("https://www.youtube.com/watch?v=dQw4w9WgXcQ").unwrap();
-    let ext = registry.find_extractor(&yt_url).expect("Must find extractor for YouTube");
+    let ext = registry
+        .find_extractor(&yt_url)
+        .expect("Must find extractor for YouTube");
     assert_eq!(ext.name(), "youtube");
 
     // 2. Google Drive routing
     let gdrive_url = Url::parse("https://drive.google.com/file/d/123456789/view").unwrap();
-    let ext = registry.find_extractor(&gdrive_url).expect("Must find extractor for Google Drive");
+    let ext = registry
+        .find_extractor(&gdrive_url)
+        .expect("Must find extractor for Google Drive");
     assert_eq!(ext.name(), "google_drive");
 
     // 3. Dropbox routing
     let dropbox_url = Url::parse("https://www.dropbox.com/s/abcdef123/video.mp4?dl=0").unwrap();
-    let ext = registry.find_extractor(&dropbox_url).expect("Must find extractor for Dropbox");
+    let ext = registry
+        .find_extractor(&dropbox_url)
+        .expect("Must find extractor for Dropbox");
     assert_eq!(ext.name(), "dropbox");
 
     // 4. TikTok routing
     let tiktok_url = Url::parse("https://www.tiktok.com/@user/video/7123456789012345678").unwrap();
-    let ext = registry.find_extractor(&tiktok_url).expect("Must find extractor for TikTok");
+    let ext = registry
+        .find_extractor(&tiktok_url)
+        .expect("Must find extractor for TikTok");
     assert_eq!(ext.name(), "ytdlp");
 
     // 5. Instagram routing
     let insta_url = Url::parse("https://www.instagram.com/reel/C123456789/").unwrap();
-    let ext = registry.find_extractor(&insta_url).expect("Must find extractor for Instagram");
+    let ext = registry
+        .find_extractor(&insta_url)
+        .expect("Must find extractor for Instagram");
     assert_eq!(ext.name(), "ytdlp");
 
     // 6. X (Twitter) routing
     let twitter_url = Url::parse("https://x.com/user/status/1234567890123456789").unwrap();
-    let ext = registry.find_extractor(&twitter_url).expect("Must find extractor for X");
+    let ext = registry
+        .find_extractor(&twitter_url)
+        .expect("Must find extractor for X");
     assert_eq!(ext.name(), "ytdlp");
 
     // 7. Reddit routing
     let reddit_url =
         Url::parse("https://www.reddit.com/r/videos/comments/abc123/cool_video/").unwrap();
-    let ext = registry.find_extractor(&reddit_url).expect("Must find extractor for Reddit");
+    let ext = registry
+        .find_extractor(&reddit_url)
+        .expect("Must find extractor for Reddit");
     assert_eq!(ext.name(), "ytdlp");
 
     // 8. Vimeo routing
     let vimeo_url = Url::parse("https://vimeo.com/123456789").unwrap();
-    let ext = registry.find_extractor(&vimeo_url).expect("Must find extractor for Vimeo");
+    let ext = registry
+        .find_extractor(&vimeo_url)
+        .expect("Must find extractor for Vimeo");
     assert_eq!(ext.name(), "ytdlp");
 
     // 9. Twitch routing
     let twitch_url = Url::parse("https://www.twitch.tv/videos/123456789").unwrap();
-    let ext = registry.find_extractor(&twitch_url).expect("Must find extractor for Twitch");
+    let ext = registry
+        .find_extractor(&twitch_url)
+        .expect("Must find extractor for Twitch");
     assert_eq!(ext.name(), "ytdlp");
 
     // 10. Generic direct media link
     let direct_url = Url::parse("https://example.com/videos/awesome_movie.mp4").unwrap();
-    let ext = registry.find_extractor(&direct_url).expect("Must find extractor for direct link");
+    let ext = registry
+        .find_extractor(&direct_url)
+        .expect("Must find extractor for direct link");
     assert_eq!(ext.name(), "generic");
 }
 
 #[tokio::test]
 async fn test_real_world_tiktok_extraction() {
     let registry = ExtractorRegistry::new();
-    let tiktok_url = Url::parse("https://www.tiktok.com/@hansenvendiagus14/video/7692418604607868180")
-        .expect("Valid URL");
+    let tiktok_url =
+        Url::parse("https://www.tiktok.com/@hansenvendiagus14/video/7692418604607868180")
+            .expect("Valid URL");
 
     let ext = registry
         .find_extractor(&tiktok_url)
@@ -312,17 +331,29 @@ async fn test_media_url_requiring_specific_headers() {
 
     // 1. Without headers: stream probe MUST fail with 403
     let probe_without = probe_stream_with_headers(&client, &url, None).await;
-    assert!(probe_without.is_err(), "Probe without required headers must fail");
+    assert!(
+        probe_without.is_err(),
+        "Probe without required headers must fail"
+    );
     let err_str = probe_without.err().unwrap().to_string();
-    assert!(err_str.contains("403"), "Error must contain 403 status code");
+    assert!(
+        err_str.contains("403"),
+        "Error must contain 403 status code"
+    );
 
     // 2. With required headers: probe MUST succeed
     let mut headers = HashMap::new();
     headers.insert("X-Auth-Token".to_string(), "secret-token-12345".to_string());
-    headers.insert("Referer".to_string(), "https://example.com/source".to_string());
+    headers.insert(
+        "Referer".to_string(),
+        "https://example.com/source".to_string(),
+    );
 
     let probe_with = probe_stream_with_headers(&client, &url, Some(&headers)).await;
-    assert!(probe_with.is_ok(), "Probe with required headers must succeed");
+    assert!(
+        probe_with.is_ok(),
+        "Probe with required headers must succeed"
+    );
     assert_eq!(probe_with.unwrap().total_bytes, Some(12));
 }
 
@@ -343,7 +374,8 @@ async fn test_expired_url_handling_and_re_extraction() {
     let initial_url = format!("http://{addr}/expired_stream");
     let refreshed_url = format!("http://{addr}/refreshed_stream");
 
-    let temp_part = std::env::temp_dir().join(format!("ff_test_refresh_{}.part", uuid::Uuid::new_v4()));
+    let temp_part =
+        std::env::temp_dir().join(format!("ff_test_refresh_{}.part", uuid::Uuid::new_v4()));
     let (_cancel_tx, cancel_rx) = watch::channel(false);
     let rate_limiter = RateLimiter::new(None);
 
@@ -368,20 +400,33 @@ async fn test_expired_url_handling_and_re_extraction() {
     .await;
 
     let _ = tokio::fs::remove_file(&temp_part).await;
-    assert!(downloaded.is_ok(), "Download should succeed after refreshing expired URL");
-    assert_eq!(downloaded.unwrap(), 10, "Should have downloaded 10 bytes from refreshed URL");
+    assert!(
+        downloaded.is_ok(),
+        "Download should succeed after refreshing expired URL"
+    );
+    assert_eq!(
+        downloaded.unwrap(),
+        10,
+        "Should have downloaded 10 bytes from refreshed URL"
+    );
 }
 
 #[tokio::test]
 async fn test_fallback_to_ytdlp_managed_downloading() {
     let registry = ExtractorRegistry::new();
-    let tiktok_url = Url::parse("https://www.tiktok.com/@hansenvendiagus14/video/7692418604607868180").unwrap();
+    let tiktok_url =
+        Url::parse("https://www.tiktok.com/@hansenvendiagus14/video/7692418604607868180").unwrap();
 
-    let ext = registry.find_extractor(&tiktok_url).expect("Must find extractor for TikTok");
+    let ext = registry
+        .find_extractor(&tiktok_url)
+        .expect("Must find extractor for TikTok");
     assert_eq!(ext.name(), "ytdlp");
 
     let ctx = freefetch_lib::extractor::ExtractionContext::default();
-    let (_meta, manifest) = ext.extract(&tiktok_url, &ctx).await.expect("Extract must succeed");
+    let (_meta, manifest) = ext
+        .extract(&tiktok_url, &ctx)
+        .await
+        .expect("Extract must succeed");
 
     assert!(!manifest.formats.is_empty(), "Formats must be available");
     // Verify that formats are routed to ytdlp:// to prevent direct 403 probe rejections
@@ -391,7 +436,10 @@ async fn test_fallback_to_ytdlp_managed_downloading() {
             "Extractor-managed format must use ytdlp:// protocol: got {}",
             f.download_url
         );
-        assert!(f.http_headers.is_some(), "Format must retain request headers");
+        assert!(
+            f.http_headers.is_some(),
+            "Format must retain request headers"
+        );
     }
 }
 
@@ -419,15 +467,28 @@ async fn test_real_world_tiktok_download_and_mp4_playback() {
     assert!(dest_path.is_file(), "Downloaded video file must exist");
 
     let file_size = std::fs::metadata(&dest_path).unwrap().len();
-    assert!(file_size > 500_000, "Downloaded file size must be > 500KB, got {file_size}");
+    assert!(
+        file_size > 500_000,
+        "Downloaded file size must be > 500KB, got {file_size}"
+    );
 
     // Verify video and audio playback capabilities with ffprobe
     let probe = ProbeController::discover(None).expect("ffprobe must be discoverable");
-    let video_codec = probe.probe_video_codec(&dest_path).await.expect("ffprobe video codec check failed");
-    let audio_codec = probe.probe_audio_codec(&dest_path).await.expect("ffprobe audio codec check failed");
+    let video_codec = probe
+        .probe_video_codec(&dest_path)
+        .await
+        .expect("ffprobe video codec check failed");
+    let audio_codec = probe
+        .probe_audio_codec(&dest_path)
+        .await
+        .expect("ffprobe audio codec check failed");
 
     println!("Verified TikTok MP4 playback: video_codec={video_codec}, audio_codec={audio_codec}, size={file_size}");
-    assert_eq!(video_codec.to_lowercase(), "h264", "Video codec must be h264");
+    assert_eq!(
+        video_codec.to_lowercase(),
+        "h264",
+        "Video codec must be h264"
+    );
     assert_eq!(audio_codec.to_lowercase(), "aac", "Audio codec must be aac");
 
     // Clean up temporary test file

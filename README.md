@@ -2,6 +2,30 @@
 
 > Clean-room, high-fidelity desktop media downloader built with Tauri v2, Rust, React, and FFmpeg.
 
+[![Release](https://img.shields.io/badge/release-v0.1.0--beta-blue.svg)](https://github.com/risterz/FreeFetch/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Tests](https://img.shields.io/badge/tests-277%20passed-success.svg)](docs/DOCUMENTATION.md)
+[![Rust](https://img.shields.io/badge/rust-1.77%2B-orange.svg)](https://www.rust-lang.org/)
+[![Tauri](https://img.shields.io/badge/tauri-v2.0-blueviolet.svg)](https://v2.tauri.app/)
+
+---
+
+## Visual Tour & Screenshots
+
+| Main Queue & Speed Throttling | Stream Format Picker |
+| :---: | :---: |
+| ![Queue Dashboard](docs/screenshots/01_queue_dashboard.svg) | ![Format Modal](docs/screenshots/02_format_modal.svg) |
+
+| SQLite History & Metrics | Engine & Bundled Sidecars |
+| :---: | :---: |
+| ![History Analytics](docs/screenshots/03_history_analytics.svg) | ![Settings Engine](docs/screenshots/04_settings_engine.svg) |
+
+| Automated Test Suite Verification |
+| :---: |
+| ![Automated Tests](docs/screenshots/05_automated_tests_verification.svg) |
+
+> 📖 **Full Technical Documentation**: For detailed architecture, extractor internals, and security designs, consult [docs/DOCUMENTATION.md](docs/DOCUMENTATION.md).
+
 ---
 
 ## 1. Project Overview
@@ -191,3 +215,41 @@ FreeFetch/
 ## 7. Clean-Room Implementation Statement
 
 FreeFetch was designed and authored strictly as a clean-room implementation following public specifications and standard media protocols. No proprietary source code, proprietary binaries, or reverse-engineered code from closed-source tools was copied into this codebase. FreeFetch does not implement DRM bypass, payment bypass, authentication bypass, or private credential harvesting.
+
+---
+
+## 8. Installation, Dependencies & Updates
+
+### Windows Installation
+FreeFetch release installers bundle verified standalone x86_64 sidecars for both **FFmpeg** and **yt-dlp** in `sidecars/`, enabling immediate operation on clean Windows installations without requiring developer tools, Chocolatey, Scoop, or Python.
+
+1. Download `FreeFetch_0.1.0_x64-setup.exe` (NSIS) or `FreeFetch_0.1.0_x64_en-US.msi` (MSI).
+2. Run the installer:
+   - **NSIS Setup**: Double-click to install per-user (no admin rights required).
+   - **MSI Installer (Per-User)**: Run `msiexec.exe /i FreeFetch_0.1.0_x64_en-US.msi MSIINSTALLPERUSER=1 ALLUSERS=2 /qn /norestart`.
+3. Launch FreeFetch from the Desktop or Start Menu.
+
+### Code Signing & SmartScreen (Public Beta)
+- **Status**: The public beta binary release is **unsigned** (Open Source Preview).
+- **Windows SmartScreen**: When launching the installer, Windows SmartScreen may display: *"Windows protected your PC / Unknown Publisher"*. Click **"More info"**, then select **"Run anyway"**.
+- **Cryptographic Verification**: Official SHA-256 checksums are published in every release note. Verify your installer via PowerShell:
+  ```powershell
+  Get-FileHash -Path "FreeFetch_0.1.0_x64-setup.exe" -Algorithm SHA256
+  ```
+
+### Updates
+- **Application Updates**: Manual in-place updates. Download newer installers from official GitHub Releases (`https://github.com/risterz/FreeFetch/releases`) and run over existing installation; local settings and history database (`freefetch.db`) are preserved automatically.
+- **yt-dlp Self-Updating**: Because media platforms frequently adjust delivery protocols, users can update `yt-dlp` directly inside FreeFetch via **Settings > Advanced > Update yt-dlp** without requiring an entire app upgrade.
+
+---
+
+## 9. Licensing & Third-Party Notices
+
+FreeFetch application source code is licensed under the [MIT License](LICENSE).
+
+Bundled binaries and external dependencies are distributed in strict accordance with their respective upstream licenses:
+- **FFmpeg (`ffmpeg.exe`)**: GNU General Public License v3.0 (GPLv3). Source code is available at [https://ffmpeg.org](https://ffmpeg.org).
+- **yt-dlp (`yt-dlp.exe`)**: The Unlicense (Public Domain Dedication). Upstream at [https://github.com/yt-dlp/yt-dlp](https://github.com/yt-dlp/yt-dlp).
+
+See [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) for full licensing details, compilation configurations, and third-party notices.
+

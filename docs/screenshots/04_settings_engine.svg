@@ -1,0 +1,146 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 800" width="1280" height="800" style="background:#090d16;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Oxygen,Ubuntu,sans-serif;">
+  <defs>
+    <linearGradient id="bgGlow" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#141c2e"/>
+      <stop offset="100%" stop-color="#0b0f19"/>
+    </linearGradient>
+    <linearGradient id="primaryGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+    <linearGradient id="accentCard" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#131c2e"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Window Frame -->
+  <rect x="0" y="0" width="1280" height="800" rx="10" fill="url(#bgGlow)"/>
+  
+  <!-- Title Bar -->
+  <rect x="0" y="0" width="1280" height="42" fill="#0b0f17"/>
+  <circle cx="20" cy="21" r="6" fill="#ef4444"/>
+  <circle cx="40" cy="21" r="6" fill="#f59e0b"/>
+  <circle cx="60" cy="21" r="6" fill="#10b981"/>
+  <text x="640" y="26" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="600">FreeFetch v0.1.0 (Public Beta) - Engine &amp; Application Settings</text>
+
+  <!-- Sidebar -->
+  <rect x="0" y="42" width="220" height="758" fill="#0d131f"/>
+  <line x1="220" y1="42" x2="220" y2="800" stroke="#1e293b" stroke-width="1"/>
+  
+  <!-- Sidebar Brand -->
+  <g transform="translate(24, 70)">
+    <rect width="32" height="32" rx="8" fill="url(#primaryGrad)"/>
+    <polygon points="12,9 23,16 12,23" fill="#ffffff"/>
+    <text x="42" y="22" fill="#ffffff" font-size="18" font-weight="700">FreeFetch</text>
+  </g>
+
+  <!-- Navigation -->
+  <g transform="translate(16, 130)">
+    <!-- Queue Nav -->
+    <rect x="0" y="0" width="188" height="38" rx="8" fill="transparent"/>
+    <text x="36" y="24" fill="#94a3b8" font-size="14" font-weight="500">Queue</text>
+    
+    <!-- History Nav -->
+    <rect x="0" y="46" width="188" height="38" rx="8" fill="transparent"/>
+    <text x="36" y="70" fill="#94a3b8" font-size="14" font-weight="500">History &amp; Stats</text>
+    
+    <!-- Settings Nav (Active) -->
+    <rect x="0" y="92" width="188" height="38" rx="8" fill="#1e293b"/>
+    <rect x="0" y="92" width="4" height="38" rx="2" fill="#3b82f6"/>
+    <text x="36" y="116" fill="#60a5fa" font-size="14" font-weight="600">Settings</text>
+  </g>
+
+  <!-- Main Content Header -->
+  <g transform="translate(260, 75)">
+    <text x="0" y="0" fill="#ffffff" font-size="24" font-weight="700">Settings &amp; Engine Configuration</text>
+    <text x="0" y="24" fill="#64748b" font-size="14">Manage storage targets, download throttling, and bundled media sidecars</text>
+  </g>
+
+  <!-- Settings Tabs -->
+  <g transform="translate(260, 130)">
+    <rect x="0" y="0" width="100" height="32" rx="6" fill="#3b82f6"/>
+    <text x="50" y="20" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="600">General</text>
+    
+    <rect x="110" y="0" width="120" height="32" rx="6" fill="#1e293b"/>
+    <text x="170" y="20" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="500">Sidecar Engine</text>
+
+    <rect x="240" y="0" width="110" height="32" rx="6" fill="#1e293b"/>
+    <text x="295" y="20" text-anchor="middle" fill="#94a3b8" font-size="13" font-weight="500">Network</text>
+  </g>
+
+  <!-- Settings Section 1: Storage & Directories -->
+  <g transform="translate(260, 185)">
+    <rect x="0" y="0" width="970" height="150" rx="10" fill="url(#accentCard)" stroke="#334155" stroke-width="1"/>
+    <text x="24" y="32" fill="#ffffff" font-size="16" font-weight="600">Storage &amp; Downloads</text>
+    <text x="24" y="52" fill="#64748b" font-size="13">Configure default destination directory and file naming behavior</text>
+    
+    <!-- Path row -->
+    <text x="24" y="90" fill="#94a3b8" font-size="13" font-weight="500">Default Save Path</text>
+    <rect x="24" y="100" width="760" height="36" rx="6" fill="#0b0f19" stroke="#334155"/>
+    <text x="36" y="123" fill="#e2e8f0" font-size="13" font-family="monospace">C:\Users\FreeFetchUser\Downloads\FreeFetch</text>
+    <rect x="795" y="100" width="150" height="36" rx="6" fill="#3b82f6"/>
+    <text x="870" y="123" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="600">Browse Folder</text>
+  </g>
+
+  <!-- Settings Section 2: Engine & Sidecars Status -->
+  <g transform="translate(260, 355)">
+    <rect x="0" y="0" width="970" height="230" rx="10" fill="url(#accentCard)" stroke="#334155" stroke-width="1"/>
+    <text x="24" y="32" fill="#ffffff" font-size="16" font-weight="600">Bundled Sidecar Health</text>
+    <text x="24" y="52" fill="#64748b" font-size="13">Cryptographically verified binaries embedded in app bundle</text>
+
+    <!-- FFmpeg Status Card -->
+    <g transform="translate(24, 75)">
+      <rect width="445" height="130" rx="8" fill="#0b0f19" stroke="#1e293b"/>
+      <circle cx="28" cy="30" r="6" fill="#10b981"/>
+      <text x="44" y="35" fill="#ffffff" font-size="15" font-weight="600">FFmpeg Multiplexer</text>
+      <rect x="360" y="18" width="65" height="22" rx="4" fill="#064e3b"/>
+      <text x="392" y="33" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">VERIFIED</text>
+      
+      <text x="28" y="65" fill="#64748b" font-size="12">Version: <tspan fill="#94a3b8">7.1.1-essentials_build-www.gyan.dev</tspan></text>
+      <text x="28" y="85" fill="#64748b" font-size="12">Location: <tspan fill="#94a3b8">sidecars/ffmpeg.exe (Embedded Resource)</tspan></text>
+      <text x="28" y="105" fill="#64748b" font-size="12">SHA-256: <tspan fill="#38bdf8" font-family="monospace">b90225987bdd...5522997</tspan></text>
+    </g>
+
+    <!-- yt-dlp Status Card -->
+    <g transform="translate(495, 75)">
+      <rect width="450" height="130" rx="8" fill="#0b0f19" stroke="#1e293b"/>
+      <circle cx="28" cy="30" r="6" fill="#10b981"/>
+      <text x="44" y="35" fill="#ffffff" font-size="15" font-weight="600">yt-dlp Extractor</text>
+      <rect x="365" y="18" width="65" height="22" rx="4" fill="#064e3b"/>
+      <text x="397" y="33" text-anchor="middle" fill="#34d399" font-size="11" font-weight="700">VERIFIED</text>
+
+      <text x="28" y="65" fill="#64748b" font-size="12">Version: <tspan fill="#94a3b8">2026.10.26 (Standalone Native Binary)</tspan></text>
+      <text x="28" y="85" fill="#64748b" font-size="12">TLS Impersonation: <tspan fill="#10b981">curl-cffi 0.16.0 active</tspan></text>
+      <text x="28" y="105" fill="#64748b" font-size="12">SHA-256: <tspan fill="#38bdf8" font-family="monospace">f5389d3698ec...6d177a7d</tspan></text>
+    </g>
+  </g>
+
+  <!-- Settings Section 3: Performance & Throttling -->
+  <g transform="translate(260, 605)">
+    <rect x="0" y="0" width="970" height="150" rx="10" fill="url(#accentCard)" stroke="#334155" stroke-width="1"/>
+    <text x="24" y="32" fill="#ffffff" font-size="16" font-weight="600">Concurrency &amp; Networking</text>
+    <text x="24" y="52" fill="#64748b" font-size="13">Control multi-thread chunking, max parallel jobs, and auto-retry policies</text>
+
+    <!-- Slider 1 -->
+    <text x="24" y="90" fill="#94a3b8" font-size="13">Maximum Concurrent Downloads: <tspan fill="#38bdf8" font-weight="600">3 Tasks</tspan></text>
+    <rect x="24" y="104" width="420" height="8" rx="4" fill="#0b0f19"/>
+    <rect x="24" y="104" width="140" height="8" rx="4" fill="#3b82f6"/>
+    <circle cx="164" cy="108" r="9" fill="#ffffff" stroke="#3b82f6" stroke-width="3"/>
+
+    <!-- Checkbox options -->
+    <g transform="translate(495, 80)">
+      <rect x="0" y="0" width="18" height="18" rx="4" fill="#3b82f6"/>
+      <path d="M4 9 L7 12 L14 5" stroke="#ffffff" stroke-width="2" fill="none"/>
+      <text x="28" y="14" fill="#e2e8f0" font-size="13">Auto-mux streams into single MP4 container</text>
+
+      <rect x="0" y="32" width="18" height="18" rx="4" fill="#3b82f6"/>
+      <path d="M4 41 L7 44 L14 37" stroke="#ffffff" stroke-width="2" fill="none"/>
+      <text x="28" y="46" fill="#e2e8f0" font-size="13">Hardware Accelerated H.264 / HEVC Decoding</text>
+    </g>
+
+    <!-- Save Button -->
+    <rect x="830" y="90" width="115" height="38" rx="6" fill="#10b981"/>
+    <text x="887" y="114" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">Save Changes</text>
+  </g>
+</svg>
